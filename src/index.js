@@ -8,15 +8,8 @@ export default {
         if (url.pathname === '/webhook' && request.method === 'POST') {
             try {
                 const update = await request.json();
-                
-                if (update.message) {
-                    await handleMessage(update.message, env);
-                }
-                
-                if (update.callback_query) {
-                    await handleCallback(update.callback_query, env);
-                }
-                
+                if (update.message) await handleMessage(update.message, env);
+                if (update.callback_query) await handleCallback(update.callback_query, env);
                 return new Response('OK', { status: 200 });
             } catch (error) {
                 console.error('Error:', error);
@@ -24,19 +17,12 @@ export default {
             }
         }
         
-        if (url.pathname === '/health') {
-            return new Response('Bot is running', { status: 200 });
-        }
-        
         if (url.pathname === '/setwebhook') {
             const botToken = env.BOT_TOKEN;
             const workerUrl = `https://${request.headers.get('host')}`;
             const webhookUrl = `${workerUrl}/webhook`;
-            
-            const apiUrl = `https://api.telegram.org/bot${botToken}/setWebhook?url=${webhookUrl}`;
-            const response = await fetch(apiUrl);
+            const response = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook?url=${webhookUrl}`);
             const result = await response.json();
-            
             return new Response(JSON.stringify(result, null, 2), {
                 headers: { 'Content-Type': 'application/json' }
             });
