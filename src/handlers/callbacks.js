@@ -21,7 +21,7 @@ export async function handleCallback(callbackQuery, env) {
         await answerCallbackQuery(callbackQuery.id, env);
         await deleteMessage(chatId, messageId, env);
         await sendMessage(chatId, 
-            `[Info]\nWelcome to ZedtopVibes Bot! ✅\n\nUse /start to begin.\n\n[Done]`,
+            `[Info]\nWelcome to ZedtopVibes Bot! ✅\n\nUse /start to begin.`,
             env
         );
     }
