@@ -1,6 +1,6 @@
-import { sendMessage } from '../utils/telegram.js';
+import { sendMessage, sendPhoto } from '../utils/telegram.js';
 import { checkSubscription, sendForceSubMessage, isForceSubEnabled, setForceSubEnabled } from '../services/subscription.js';
- 
+
 export async function handleMessage(message, env) {
     const chatId = message.chat.id;
     const text = message.text || '';
@@ -8,7 +8,7 @@ export async function handleMessage(message, env) {
     const userId = message.from.id;
     const isPrivateChat = chatId === userId;
     
-    // Admin commands for force sub toggle
+    // Admin commands
     if (text.startsWith('/forcesub') && userId.toString() === env.ADMIN_ID) {
         await handleForceSubCommand(chatId, text, env);
         return;
@@ -17,58 +17,61 @@ export async function handleMessage(message, env) {
     // Force sub for private chats
     if (isPrivateChat) {
         const isSubscribed = await checkSubscription(userId, env);
-        
         if (!isSubscribed) {
             await sendForceSubMessage(chatId, env);
             return;
         }
     }
     
-    // Handle commands after subscription
+    // Handle commands
     if (text === '/start') {
-        await sendMessage(chatId, 
-            `[Info]\nWelcome ${firstName}! 👋\n\nBot is ready to use.`,
-            env
-        );
+        await sendMessage(chatId, `Welcome ${firstName}! 👋\n\nUse /track, /artist, /album, /ep, /playlist, or /compilation to search Zambian music.`, env);
         return;
     }
     
-    // Handle search commands
     if (text.startsWith('/track')) {
         const query = text.replace('/track', '').trim();
-        if (query) {
-            await searchTracks(chatId, query, env);
-        } else {
-            await sendMessage(chatId, `[Info]\nUsage: /track <song name>\n\nExample: /track Ice Spice Bikini Bottom`, env);
-        }
+        if (query) await searchTracks(chatId, query, env);
+        else await sendMessage(chatId, `Usage: /track <song name>\nExample: /track Mr Santa`, env);
         return;
     }
     
     if (text.startsWith('/artist')) {
         const query = text.replace('/artist', '').trim();
-        if (query) {
-            await searchArtists(chatId, query, env);
-        } else {
-            await sendMessage(chatId, `[Info]\nUsage: /artist <artist name>\n\nExample: /artist Ice Spice`, env);
-        }
+        if (query) await searchArtists(chatId, query, env);
+        else await sendMessage(chatId, `Usage: /artist <artist name>\nExample: /artist Chile One`, env);
         return;
     }
     
     if (text.startsWith('/album')) {
         const query = text.replace('/album', '').trim();
-        if (query) {
-            await searchAlbums(chatId, query, env);
-        } else {
-            await sendMessage(chatId, `[Info]\nUsage: /album <album name>\n\nExample: /album Like?`, env);
-        }
+        if (query) await searchAlbums(chatId, query, env);
+        else await sendMessage(chatId, `Usage: /album <album name>\nExample: /album Mr Santa`, env);
         return;
     }
     
-    // Echo for testing
-    await sendMessage(chatId, 
-        `[Info]\nYou said: "${text}"\n\nUse /track, /artist, or /album to search Zambian music.`,
-        env
-    );
+    if (text.startsWith('/ep')) {
+        const query = text.replace('/ep', '').trim();
+        if (query) await searchEPs(chatId, query, env);
+        else await sendMessage(chatId, `Usage: /ep <EP name>\nExample: /ep Love Ep`, env);
+        return;
+    }
+    
+    if (text.startsWith('/playlist')) {
+        const query = text.replace('/playlist', '').trim();
+        if (query) await searchPlaylists(chatId, query, env);
+        else await sendMessage(chatId, `Usage: /playlist <playlist name>\nExample: /playlist Zambian Hits`, env);
+        return;
+    }
+    
+    if (text.startsWith('/compilation')) {
+        const query = text.replace('/compilation', '').trim();
+        if (query) await searchCompilations(chatId, query, env);
+        else await sendMessage(chatId, `Usage: /compilation <compilation name>\nExample: /compilation Best of 2024`, env);
+        return;
+    }
+    
+    await sendMessage(chatId, `Unknown command. Try /track, /artist, /album, /ep, /playlist, or /compilation`, env);
 }
 
 async function searchTracks(chatId, query, env) {
@@ -78,38 +81,41 @@ async function searchTracks(chatId, query, env) {
         SELECT 
             t.id,
             t.title,
-            t.duration,
-            t.plays,
-            a.name as artist_name
+            t.release_date,
+            t.artwork_url,
+            a.name as artist_name,
+            al.title as album_title
         FROM tracks t
-        LEFT JOIN artists a ON t.artist_id = a.id
+        LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+        LEFT JOIN artists a ON ta.artist_id = a.id
+        LEFT JOIN albums al ON t.album_id = al.id
         WHERE (t.title LIKE ? OR a.name LIKE ?)
         AND t.status = 'published'
+        AND t.deleted_at IS NULL
+        GROUP BY t.id
         LIMIT 5
     `).bind(searchTerm, searchTerm).all();
     
     if (!results.results || results.results.length === 0) {
-        await sendMessage(chatId, `[Info]\n❌ No tracks found for "${query}"`, env);
+        await sendMessage(chatId, `❌ No tracks found for "${query}"`, env);
         return;
     }
     
     for (const track of results.results) {
-        const duration = formatDuration(track.duration);
-        const plays = track.plays ? track.plays.toLocaleString() : '0';
+        const year = track.release_date ? track.release_date.split('-')[0] : 'Unknown';
+        const albumName = track.album_title || '—';
+        
+        const caption = `🎧 Track: ${track.title}\n👤 Artist: ${track.artist_name}\n💽 Album: ${albumName}\n📅 Date: ${year}`;
         
         const inlineKeyboard = {
-            inline_keyboard: [
-                [{ text: "🎵 View in Bot Chat", callback_data: `track_${track.id}` }]
-            ]
+            inline_keyboard: [[{ text: "🎵 View in Bot Chat", callback_data: `track_${track.id}` }]]
         };
         
-        await sendMessage(chatId, 
-            `🇿🇲 *${track.artist_name} - ${track.title}*\n` +
-            `⏱️ Duration: ${duration}\n` +
-            `🎧 Plays: ${plays}`,
-            env,
-            inlineKeyboard
-        );
+        if (track.artwork_url) {
+            await sendPhoto(chatId, track.artwork_url, caption, env, inlineKeyboard);
+        } else {
+            await sendMessage(chatId, caption, env, inlineKeyboard);
+        }
     }
 }
 
@@ -118,38 +124,32 @@ async function searchArtists(chatId, query, env) {
     
     const results = await env.DB.prepare(`
         SELECT 
-            id,
-            name,
-            total_tracks,
-            total_plays
-        FROM artists
-        WHERE name LIKE ?
-        AND status = 'published'
+            a.id,
+            a.name,
+            a.image_url,
+            COUNT(DISTINCT ta.track_id) as total_tracks,
+            COUNT(DISTINCT al.id) as album_count
+        FROM artists a
+        LEFT JOIN track_artists ta ON a.id = ta.artist_id
+        LEFT JOIN albums al ON a.id = al.artist_id AND al.deleted_at IS NULL
+        WHERE a.name LIKE ? AND a.status = 'published' AND a.deleted_at IS NULL
+        GROUP BY a.id
         LIMIT 5
     `).bind(searchTerm).all();
     
     if (!results.results || results.results.length === 0) {
-        await sendMessage(chatId, `[Info]\n❌ No artists found for "${query}"`, env);
+        await sendMessage(chatId, `❌ No artists found for "${query}"`, env);
         return;
     }
     
     for (const artist of results.results) {
-        const tracks = artist.total_tracks || 0;
-        const plays = artist.total_plays ? artist.total_plays.toLocaleString() : '0';
+        const caption = `👤 Artist: ${artist.name}\n💽 Albums: ${artist.album_count || 0}\n📊 Total Tracks: ${artist.total_tracks || 0}`;
         
-        const inlineKeyboard = {
-            inline_keyboard: [
-                [{ text: "🎵 View Songs", callback_data: `artist_${artist.id}` }]
-            ]
-        };
-        
-        await sendMessage(chatId, 
-            `🇿🇲 *${artist.name}*\n` +
-            `🎤 Tracks: ${tracks}\n` +
-            `🎧 Total Plays: ${plays}`,
-            env,
-            inlineKeyboard
-        );
+        if (artist.image_url) {
+            await sendPhoto(chatId, artist.image_url, caption, env);
+        } else {
+            await sendMessage(chatId, caption, env);
+        }
     }
 }
 
@@ -161,34 +161,131 @@ async function searchAlbums(chatId, query, env) {
             al.id,
             al.title,
             al.release_date,
-            a.name as artist_name
+            al.cover_url,
+            a.name as artist_name,
+            COUNT(DISTINCT et.track_id) as track_count
         FROM albums al
         LEFT JOIN artists a ON al.artist_id = a.id
-        WHERE al.title LIKE ?
-        AND al.status = 'published'
+        LEFT JOIN ep_tracks et ON al.id = et.ep_id
+        WHERE al.title LIKE ? AND al.status = 'published' AND al.deleted_at IS NULL
+        GROUP BY al.id
         LIMIT 5
     `).bind(searchTerm).all();
     
     if (!results.results || results.results.length === 0) {
-        await sendMessage(chatId, `[Info]\n❌ No albums found for "${query}"`, env);
+        await sendMessage(chatId, `❌ No albums found for "${query}"`, env);
         return;
     }
     
     for (const album of results.results) {
         const year = album.release_date ? album.release_date.split('-')[0] : 'Unknown';
+        const caption = `💽 Album: ${album.title}\n👤 Artist: ${album.artist_name}\n📅 Date: ${year}\n🎧 Total tracks: ${album.track_count || 0}`;
         
-        const inlineKeyboard = {
-            inline_keyboard: [
-                [{ text: "🎵 View Album", callback_data: `album_${album.id}` }]
-            ]
-        };
+        if (album.cover_url) {
+            await sendPhoto(chatId, album.cover_url, caption, env);
+        } else {
+            await sendMessage(chatId, caption, env);
+        }
+    }
+}
+
+async function searchEPs(chatId, query, env) {
+    const searchTerm = `%${query}%`;
+    
+    const results = await env.DB.prepare(`
+        SELECT 
+            e.id,
+            e.title,
+            e.release_date,
+            e.cover_url,
+            a.name as artist_name,
+            COUNT(DISTINCT et.track_id) as track_count
+        FROM eps e
+        LEFT JOIN artists a ON e.artist_id = a.id
+        LEFT JOIN ep_tracks et ON e.id = et.ep_id
+        WHERE e.title LIKE ? AND e.status = 'published' AND e.deleted_at IS NULL
+        GROUP BY e.id
+        LIMIT 5
+    `).bind(searchTerm).all();
+    
+    if (!results.results || results.results.length === 0) {
+        await sendMessage(chatId, `❌ No EPs found for "${query}"`, env);
+        return;
+    }
+    
+    for (const ep of results.results) {
+        const year = ep.release_date ? ep.release_date.split('-')[0] : 'Unknown';
+        const caption = `💽 EP: ${ep.title}\n👤 Artist: ${ep.artist_name}\n📅 Date: ${year}\n🎧 Total tracks: ${ep.track_count || 0}`;
         
-        await sendMessage(chatId, 
-            `🇿🇲 *${album.artist_name} - ${album.title}*\n` +
-            `📅 Year: ${year}`,
-            env,
-            inlineKeyboard
-        );
+        if (ep.cover_url) {
+            await sendPhoto(chatId, ep.cover_url, caption, env);
+        } else {
+            await sendMessage(chatId, caption, env);
+        }
+    }
+}
+
+async function searchPlaylists(chatId, query, env) {
+    const searchTerm = `%${query}%`;
+    
+    const results = await env.DB.prepare(`
+        SELECT 
+            p.id,
+            p.title,
+            p.cover_url,
+            COUNT(DISTINCT pt.track_id) as track_count
+        FROM playlists p
+        LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id
+        WHERE p.title LIKE ? AND p.status = 'published' AND p.deleted_at IS NULL
+        GROUP BY p.id
+        LIMIT 5
+    `).bind(searchTerm).all();
+    
+    if (!results.results || results.results.length === 0) {
+        await sendMessage(chatId, `❌ No playlists found for "${query}"`, env);
+        return;
+    }
+    
+    for (const playlist of results.results) {
+        const caption = `📋 Playlist: ${playlist.title}\n🎧 Total tracks: ${playlist.track_count || 0}`;
+        
+        if (playlist.cover_url) {
+            await sendPhoto(chatId, playlist.cover_url, caption, env);
+        } else {
+            await sendMessage(chatId, caption, env);
+        }
+    }
+}
+
+async function searchCompilations(chatId, query, env) {
+    const searchTerm = `%${query}%`;
+    
+    const results = await env.DB.prepare(`
+        SELECT 
+            c.id,
+            c.title,
+            c.cover_url,
+            COUNT(DISTINCT ci.track_id) as track_count
+        FROM compilations c
+        LEFT JOIN compilation_items ci ON c.id = ci.compilation_id
+        WHERE c.title LIKE ? AND c.status = 'published' AND c.deleted_at IS NULL
+        GROUP BY c.id
+        LIMIT 5
+    `).bind(searchTerm).all();
+    
+    if (!results.results || results.results.length === 0) {
+        await sendMessage(chatId, `❌ No compilations found for "${query}"`, env);
+        return;
+    }
+    
+    for (const compilation of results.results) {
+        const caption = `📀 Compilation: ${compilation.title}\n🎧 Total tracks: ${compilation.track_count || 0}`;
+        
+        if (compilation.cover_url) {
+            await sendPhoto(chatId, compilation.cover_url, caption, env);
+        } else {
+            await sendMessage(chatId, caption, env);
+        }
     }
 }
 
@@ -198,33 +295,12 @@ async function handleForceSubCommand(chatId, text, env) {
     
     if (action === 'on') {
         await setForceSubEnabled(true, env);
-        await sendMessage(chatId, 
-            `[Info]\n✅ Force Sub ENABLED\n\nUsers must join @${env.CHANNEL_USERNAME}`,
-            env
-        );
+        await sendMessage(chatId, `✅ Force Sub ENABLED\n\nUsers must join @${env.CHANNEL_USERNAME}`, env);
     } else if (action === 'off') {
         await setForceSubEnabled(false, env);
-        await sendMessage(chatId, 
-            `[Info]\n❌ Force Sub DISABLED\n\nAnyone can use the bot`,
-            env
-        );
-    } else if (action === 'status') {
-        const isEnabled = await isForceSubEnabled(env);
-        await sendMessage(chatId, 
-            `[Info]\n🔒 Force Sub is: **${isEnabled ? 'ON' : 'OFF'}**`,
-            env
-        );
+        await sendMessage(chatId, `❌ Force Sub DISABLED\n\nAnyone can use the bot`, env);
     } else {
-        await sendMessage(chatId, 
-            `[Info]\n📋 **Force Sub Commands:**\n\n/forcesub on - Enable\n/forcesub off - Disable\n/forcesub status - Check status`,
-            env
-        );
+        const isEnabled = await isForceSubEnabled(env);
+        await sendMessage(chatId, `🔒 Force Sub is: ${isEnabled ? 'ON' : 'OFF'}`, env);
     }
-}
-
-function formatDuration(seconds) {
-    if (!seconds) return 'Unknown';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
