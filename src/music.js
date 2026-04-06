@@ -1,9 +1,5 @@
 // src/music.js
 
-/**
- * Searches for a track using a many-to-many join 
- * to ensure artist names are pulled correctly.
- */
 export async function searchTracks(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
   
@@ -36,25 +32,23 @@ export async function searchTracks(db, query) {
   }
 }
 
-/**
- * Formats the message data and constructs the R2-based image URL.
- */
 export function formatTrackMessage(track) {
   const artist = track.artist_name || "Unknown Artist";
   const legendTag = track.is_zambian_legend ? " 🇿🇲 [Legend]" : "";
   
+  // Format Duration (MM:SS)
   const mins = Math.floor((track.duration || 0) / 60);
   const secs = ((track.duration || 0) % 60).toString().padStart(2, '0');
 
-  // Extract filename from the DB path (e.g., "covers/image.jpg" -> "image.jpg")
-  const rawPath = track.artwork_url || "";
-  const filename = rawPath.split('/').pop(); 
-  
-  // Construct the URL pointing to your Cover API route
+  // Logic based on your JSON: artwork_url is already "/api/cover/..."
   const siteUrl = "https://zedtopvibes.com";
-  const artwork = filename 
-    ? `${siteUrl}/api/covers/${filename}` 
-    : `${siteUrl}/apple-touch-icon.png`;
+  let artwork = `${siteUrl}/apple-touch-icon.png`; // Fallback
+
+  if (track.artwork_url) {
+    // Ensure the path starts with a slash
+    const cleanPath = track.artwork_url.startsWith('/') ? track.artwork_url : `/${track.artwork_url}`;
+    artwork = `${siteUrl}${cleanPath}`;
+  }
 
   const caption = `
 🎵 <b>${track.title}</b>
