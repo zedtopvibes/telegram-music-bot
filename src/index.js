@@ -1,6 +1,6 @@
 import { handleMessage } from './handlers/messages.js';
 import { handleCallback } from './handlers/callbacks.js';
-
+ 
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
