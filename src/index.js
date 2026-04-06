@@ -1,3 +1,6 @@
+import { handleMessage } from './handlers/messages.js';
+import { handleCallback } from './handlers/callbacks.js';
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -5,20 +8,8 @@ export default {
         if (url.pathname === '/webhook' && request.method === 'POST') {
             try {
                 const update = await request.json();
-                console.log('Received update:', JSON.stringify(update));
-                
-                if (update.message) {
-                    const chatId = update.message.chat.id;
-                    const text = update.message.text || '';
-                    const firstName = update.message.from.first_name || 'User';
-                    
-                    if (text === '/start') {
-                        await sendMessage(chatId, `Hello ${firstName}! Test bot is working. Your chat ID: ${chatId}`, env);
-                    } else {
-                        await sendMessage(chatId, `You said: ${text}`, env);
-                    }
-                }
-                
+                if (update.message) await handleMessage(update.message, env);
+                if (update.callback_query) await handleCallback(update.callback_query, env);
                 return new Response('OK', { status: 200 });
             } catch (error) {
                 console.error('Error:', error);
@@ -40,13 +31,3 @@ export default {
         return new Response('Bot is ready. Visit /setwebhook', { status: 200 });
     }
 };
-
-async function sendMessage(chatId, text, env) {
-    const botToken = env.BOT_TOKEN;
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: text })
-    });
-}
