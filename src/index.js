@@ -1,4 +1,4 @@
-// src/index.js
+// src/index.js 
 import { handleCommand } from './commands.js';
 import { sendMessage, checkSubscription, deleteMessage } from './utils.js';
 
