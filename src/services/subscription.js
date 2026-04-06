@@ -1,6 +1,5 @@
 import { sendMessage } from '../utils/telegram.js';
 
-// Check if force sub is enabled
 export async function isForceSubEnabled(env) {
     const result = await env.DB.prepare(
         'SELECT force_sub_enabled FROM bot_settings WHERE id = 1'
@@ -9,19 +8,16 @@ export async function isForceSubEnabled(env) {
     return result ? result.force_sub_enabled === 1 : true;
 }
 
-// Toggle force sub on/off
 export async function setForceSubEnabled(enabled, env) {
     await env.DB.prepare(
         'UPDATE bot_settings SET force_sub_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1'
     ).bind(enabled ? 1 : 0).run();
 }
 
-// Check subscription (only if force sub is enabled)
 export async function checkSubscription(userId, env) {
-    // First check if force sub is enabled
     const forceSubEnabled = await isForceSubEnabled(env);
     if (!forceSubEnabled) {
-        return true; // Force sub disabled, always return subscribed
+        return true;
     }
     
     const botToken = env.BOT_TOKEN;
