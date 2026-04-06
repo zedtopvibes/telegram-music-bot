@@ -73,6 +73,15 @@ export async function handleMessage(message, env) {
     await sendMessage(chatId, `Unknown command. Try /track, /artist, /album, /ep, /playlist, or /compilation`, env);
 }
 
+// Helper: Convert relative/absolute path to full URL without double slash
+function buildImageUrl(path) {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    // Remove leading slash if present to avoid double slash
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${BASE_URL}/${cleanPath}`;
+}
+
 async function searchTracks(chatId, query, env) {
     const searchTerm = `%${query}%`;
     
@@ -103,23 +112,11 @@ async function searchTracks(chatId, query, env) {
     for (const track of results.results) {
         const year = track.release_date ? track.release_date.split('-')[0] : 'Unknown';
         const albumName = track.album_title || '—';
-        
         const caption = `🎧 Track: ${track.title}\n👤 Artist: ${track.artist_name}\n💽 Album: ${albumName}\n📅 Date: ${year}`;
-        
         const inlineKeyboard = {
             inline_keyboard: [[{ text: "🎵 View in Bot Chat", callback_data: `track_${track.id}` }]]
         };
-        
-        let imageUrl = null;
-        if (track.artwork_url) {
-            if (track.artwork_url.startsWith('http')) {
-                imageUrl = track.artwork_url;
-            } else {
-                // Remove leading slash if present to avoid double slash
-                const cleanPath = track.artwork_url.startsWith('/') ? track.artwork_url : `/${track.artwork_url}`;
-                imageUrl = `${BASE_URL}${cleanPath}`;
-            }
-        }
+        const imageUrl = buildImageUrl(track.artwork_url);
         
         if (imageUrl) {
             try {
@@ -159,16 +156,7 @@ async function searchArtists(chatId, query, env) {
     
     for (const artist of results.results) {
         const caption = `👤 Artist: ${artist.name}\n💽 Albums: ${artist.album_count || 0}\n📊 Total Tracks: ${artist.total_tracks || 0}`;
-        
-        let imageUrl = null;
-        if (artist.image_url) {
-            if (artist.image_url.startsWith('http')) {
-                imageUrl = artist.image_url;
-            } else {
-                const cleanPath = artist.image_url.startsWith('/') ? artist.image_url : `/${artist.image_url}`;
-                imageUrl = `${BASE_URL}${cleanPath}`;
-            }
-        }
+        const imageUrl = buildImageUrl(artist.image_url);
         
         if (imageUrl) {
             try {
@@ -210,16 +198,7 @@ async function searchAlbums(chatId, query, env) {
     for (const album of results.results) {
         const year = album.release_date ? album.release_date.split('-')[0] : 'Unknown';
         const caption = `💽 Album: ${album.title}\n👤 Artist: ${album.artist_name}\n📅 Date: ${year}\n🎧 Total tracks: ${album.track_count || 0}`;
-        
-        let imageUrl = null;
-        if (album.cover_url) {
-            if (album.cover_url.startsWith('http')) {
-                imageUrl = album.cover_url;
-            } else {
-                const cleanPath = album.cover_url.startsWith('/') ? album.cover_url : `/${album.cover_url}`;
-                imageUrl = `${BASE_URL}${cleanPath}`;
-            }
-        }
+        const imageUrl = buildImageUrl(album.cover_url);
         
         if (imageUrl) {
             try {
@@ -261,16 +240,7 @@ async function searchEPs(chatId, query, env) {
     for (const ep of results.results) {
         const year = ep.release_date ? ep.release_date.split('-')[0] : 'Unknown';
         const caption = `💽 EP: ${ep.title}\n👤 Artist: ${ep.artist_name}\n📅 Date: ${year}\n🎧 Total tracks: ${ep.track_count || 0}`;
-        
-        let imageUrl = null;
-        if (ep.cover_url) {
-            if (ep.cover_url.startsWith('http')) {
-                imageUrl = ep.cover_url;
-            } else {
-                const cleanPath = ep.cover_url.startsWith('/') ? ep.cover_url : `/${ep.cover_url}`;
-                imageUrl = `${BASE_URL}${cleanPath}`;
-            }
-        }
+        const imageUrl = buildImageUrl(ep.cover_url);
         
         if (imageUrl) {
             try {
@@ -308,16 +278,7 @@ async function searchPlaylists(chatId, query, env) {
     
     for (const playlist of results.results) {
         const caption = `📋 Playlist: ${playlist.title}\n🎧 Total tracks: ${playlist.track_count || 0}`;
-        
-        let imageUrl = null;
-        if (playlist.cover_url) {
-            if (playlist.cover_url.startsWith('http')) {
-                imageUrl = playlist.cover_url;
-            } else {
-                const cleanPath = playlist.cover_url.startsWith('/') ? playlist.cover_url : `/${playlist.cover_url}`;
-                imageUrl = `${BASE_URL}${cleanPath}`;
-            }
-        }
+        const imageUrl = buildImageUrl(playlist.cover_url);
         
         if (imageUrl) {
             try {
@@ -355,16 +316,7 @@ async function searchCompilations(chatId, query, env) {
     
     for (const compilation of results.results) {
         const caption = `📀 Compilation: ${compilation.title}\n🎧 Total tracks: ${compilation.track_count || 0}`;
-        
-        let imageUrl = null;
-        if (compilation.cover_url) {
-            if (compilation.cover_url.startsWith('http')) {
-                imageUrl = compilation.cover_url;
-            } else {
-                const cleanPath = compilation.cover_url.startsWith('/') ? compilation.cover_url : `/${compilation.cover_url}`;
-                imageUrl = `${BASE_URL}${cleanPath}`;
-            }
-        }
+        const imageUrl = buildImageUrl(compilation.cover_url);
         
         if (imageUrl) {
             try {
