@@ -5,7 +5,7 @@ export async function isForceSubEnabled(env) {
         'SELECT force_sub_enabled FROM bot_settings WHERE id = 1'
     ).first();
     
-    return result ? result.force_sub_enabled === 1 : true;
+    return result ? result.force_sub_enabled === 1 : false;
 }
 
 export async function setForceSubEnabled(enabled, env) {
