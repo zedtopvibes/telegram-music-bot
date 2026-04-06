@@ -115,12 +115,19 @@ async function searchTracks(chatId, query, env) {
             if (track.artwork_url.startsWith('http')) {
                 imageUrl = track.artwork_url;
             } else {
-                imageUrl = `${BASE_URL}${track.artwork_url}`;
+                // Remove leading slash if present to avoid double slash
+                const cleanPath = track.artwork_url.startsWith('/') ? track.artwork_url : `/${track.artwork_url}`;
+                imageUrl = `${BASE_URL}${cleanPath}`;
             }
         }
         
         if (imageUrl) {
-            await sendPhoto(chatId, imageUrl, caption, env, inlineKeyboard);
+            try {
+                await sendPhoto(chatId, imageUrl, caption, env, inlineKeyboard);
+            } catch (error) {
+                console.error('Failed to send photo for track:', track.id, error);
+                await sendMessage(chatId, caption, env, inlineKeyboard);
+            }
         } else {
             await sendMessage(chatId, caption, env, inlineKeyboard);
         }
@@ -158,12 +165,18 @@ async function searchArtists(chatId, query, env) {
             if (artist.image_url.startsWith('http')) {
                 imageUrl = artist.image_url;
             } else {
-                imageUrl = `${BASE_URL}${artist.image_url}`;
+                const cleanPath = artist.image_url.startsWith('/') ? artist.image_url : `/${artist.image_url}`;
+                imageUrl = `${BASE_URL}${cleanPath}`;
             }
         }
         
         if (imageUrl) {
-            await sendPhoto(chatId, imageUrl, caption, env);
+            try {
+                await sendPhoto(chatId, imageUrl, caption, env);
+            } catch (error) {
+                console.error('Failed to send photo for artist:', artist.id, error);
+                await sendMessage(chatId, caption, env);
+            }
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -203,12 +216,18 @@ async function searchAlbums(chatId, query, env) {
             if (album.cover_url.startsWith('http')) {
                 imageUrl = album.cover_url;
             } else {
-                imageUrl = `${BASE_URL}${album.cover_url}`;
+                const cleanPath = album.cover_url.startsWith('/') ? album.cover_url : `/${album.cover_url}`;
+                imageUrl = `${BASE_URL}${cleanPath}`;
             }
         }
         
         if (imageUrl) {
-            await sendPhoto(chatId, imageUrl, caption, env);
+            try {
+                await sendPhoto(chatId, imageUrl, caption, env);
+            } catch (error) {
+                console.error('Failed to send photo for album:', album.id, error);
+                await sendMessage(chatId, caption, env);
+            }
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -248,12 +267,18 @@ async function searchEPs(chatId, query, env) {
             if (ep.cover_url.startsWith('http')) {
                 imageUrl = ep.cover_url;
             } else {
-                imageUrl = `${BASE_URL}${ep.cover_url}`;
+                const cleanPath = ep.cover_url.startsWith('/') ? ep.cover_url : `/${ep.cover_url}`;
+                imageUrl = `${BASE_URL}${cleanPath}`;
             }
         }
         
         if (imageUrl) {
-            await sendPhoto(chatId, imageUrl, caption, env);
+            try {
+                await sendPhoto(chatId, imageUrl, caption, env);
+            } catch (error) {
+                console.error('Failed to send photo for EP:', ep.id, error);
+                await sendMessage(chatId, caption, env);
+            }
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -289,12 +314,18 @@ async function searchPlaylists(chatId, query, env) {
             if (playlist.cover_url.startsWith('http')) {
                 imageUrl = playlist.cover_url;
             } else {
-                imageUrl = `${BASE_URL}${playlist.cover_url}`;
+                const cleanPath = playlist.cover_url.startsWith('/') ? playlist.cover_url : `/${playlist.cover_url}`;
+                imageUrl = `${BASE_URL}${cleanPath}`;
             }
         }
         
         if (imageUrl) {
-            await sendPhoto(chatId, imageUrl, caption, env);
+            try {
+                await sendPhoto(chatId, imageUrl, caption, env);
+            } catch (error) {
+                console.error('Failed to send photo for playlist:', playlist.id, error);
+                await sendMessage(chatId, caption, env);
+            }
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -330,12 +361,18 @@ async function searchCompilations(chatId, query, env) {
             if (compilation.cover_url.startsWith('http')) {
                 imageUrl = compilation.cover_url;
             } else {
-                imageUrl = `${BASE_URL}${compilation.cover_url}`;
+                const cleanPath = compilation.cover_url.startsWith('/') ? compilation.cover_url : `/${compilation.cover_url}`;
+                imageUrl = `${BASE_URL}${cleanPath}`;
             }
         }
         
         if (imageUrl) {
-            await sendPhoto(chatId, imageUrl, caption, env);
+            try {
+                await sendPhoto(chatId, imageUrl, caption, env);
+            } catch (error) {
+                console.error('Failed to send photo for compilation:', compilation.id, error);
+                await sendMessage(chatId, caption, env);
+            }
         } else {
             await sendMessage(chatId, caption, env);
         }
