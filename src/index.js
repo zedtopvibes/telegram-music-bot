@@ -70,11 +70,11 @@ async function handleCallbackQuery(callbackQuery, env) {
             return;
         }
         
-        // Subscribed - answer callback, delete message, send welcome
+        // Subscribed - answer callback, delete force sub message, send welcome
         await answerCallbackQuery(callbackQuery.id, env);
         await deleteMessage(chatId, messageId, env);
         await sendMessage(chatId, 
-            `[Info]\nWelcome to ZedtopVibes Bot! ✅\n\nUse /start to begin.\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
+            `[Info]\nWelcome to ZedtopVibes Bot! ✅\n\nUse /start to begin.\n\n[Done]`,
             env
         );
         return;
@@ -102,7 +102,7 @@ async function handleMessage(message, env) {
     // Handle commands after subscription
     if (text === '/start') {
         await sendMessage(chatId, 
-            `[Info]\nWelcome ${firstName}! 👋\n\nBot is ready to use.\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
+            `[Info]\nWelcome ${firstName}! 👋\n\nBot is ready to use.\n\n[Done]`,
             env
         );
         return;
@@ -110,7 +110,7 @@ async function handleMessage(message, env) {
     
     // Echo for testing
     await sendMessage(chatId, 
-        `[Info]\nYou said: "${text}"\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
+        `[Info]\nYou said: "${text}"\n\n[Done]`,
         env
     );
 }
