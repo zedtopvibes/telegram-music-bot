@@ -1,4 +1,4 @@
-export async function sendMessage(chatId, text, env, replyMarkup = null) {
+export async function sendMessage(chatId, text, env, replyMarkup = null) { 
     const botToken = env.BOT_TOKEN;
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     
