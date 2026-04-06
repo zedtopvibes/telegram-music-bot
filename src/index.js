@@ -1,30 +1,51 @@
+// src/index.js
+import { handleCommand } from './commands.js';
+import { sendMessage, checkSubscription } from './utils.js';
+
 export default {
   async fetch(request, env) {
-    if (request.method === "POST") {
+    if (request.method !== "POST") return new Response("OK");
+
+    try {
       const payload = await request.json();
+      const message = payload.message || payload.callback_query?.message;
+      if (!message) return new Response("OK");
 
-      // Check if it's a message and contains text
-      if (payload.message && payload.message.text) {
-        const chatId = payload.message.chat.id;
-        const text = payload.message.text;
+      const chatId = message.chat.id;
+      const userId = payload.message?.from.id || payload.callback_query?.from.id;
+      const text = message.text;
 
-        if (text === "/start") {
-          await sendMessage(chatId, "Welcome to your Music Bot! 🎵 Send me a song name (feature coming soon).", env.BOT_TOKEN);
-        } else {
-          await sendMessage(chatId, `You said: ${text}. I'm still learning how to find music!`, env.BOT_TOKEN);
+      // 1. Fetch Force Sub Setting from D1
+      const settings = await env.DB.prepare("SELECT force_sub_enabled FROM bot_settings WHERE id = 1").first();
+      const isForceSubOn = settings?.force_sub_enabled === 1;
+
+      // 2. Check Subscription if enabled (and user is not admin)
+      if (isForceSubOn && userId.toString() !== env.ADMIN_ID.toString()) {
+        const isMember = await checkSubscription(userId, env.CHANNEL_USERNAME, env.BOT_TOKEN);
+        
+        if (!isMember) {
+          const keyboard = {
+            inline_keyboard: [
+              [{ text: "Join Channel 🚀", url: `https://t.me/${env.CHANNEL_USERNAME}` }],
+              [{ text: "I have Joined ✅", callback_data: "check_join" }]
+            ]
+          };
+          return sendMessage(chatId, "⚠️ <b>Access Denied!</b>\nYou must join our channel to use this bot.", env.BOT_TOKEN, keyboard);
         }
       }
-    }
-    return new Response("OK", { status: 200 });
-  },
-};
 
-// Helper function to talk back to Telegram
-async function sendMessage(chatId, text, token) {
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text: text }),
-  });
-}
+      // 3. Route to Commands or Music Search
+      if (text && text.startsWith("/")) {
+        await handleCommand(chatId, userId, text, env);
+      } else if (text) {
+        // This is where music search logic will go later
+        await sendMessage(chatId, `🔍 Searching for: <b>${text}</b>...`, env.BOT_TOKEN);
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
+
+    return new Response("OK", { status: 200 });
+  }
+};
