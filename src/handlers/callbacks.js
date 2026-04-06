@@ -8,11 +8,9 @@ export async function handleCallback(callbackQuery, env) {
     const userId = callbackQuery.from.id;
     
     if (data === 'done') {
-        // Check if user is actually subscribed
         const isSubscribed = await checkSubscription(userId, env);
         
         if (!isSubscribed) {
-            // Show popup alert
             await answerCallbackQuery(callbackQuery.id, env, {
                 text: "❌ Please join the channel first!",
                 show_alert: true
@@ -20,13 +18,11 @@ export async function handleCallback(callbackQuery, env) {
             return;
         }
         
-        // Subscribed - answer callback, delete force sub message, send welcome
         await answerCallbackQuery(callbackQuery.id, env);
         await deleteMessage(chatId, messageId, env);
         await sendMessage(chatId, 
             `[Info]\nWelcome to ZedtopVibes Bot! ✅\n\nUse /start to begin.\n\n[Done]`,
             env
         );
-        return;
     }
 }
