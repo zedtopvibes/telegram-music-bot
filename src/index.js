@@ -1,23 +1,20 @@
+import { handleMessage } from './handlers/messages.js';
+import { handleCallback } from './handlers/callbacks.js';
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         
-        // Webhook endpoint
         if (url.pathname === '/webhook' && request.method === 'POST') {
             try {
                 const update = await request.json();
                 
-                // Handle message
                 if (update.message) {
-                    const chatId = update.message.chat.id;
-                    const text = update.message.text || '';
-                    const firstName = update.message.from.first_name || 'User';
-                    
-                    if (text === '/start') {
-                        await sendMessage(chatId, `Hello ${firstName}! Bot is working.`, env);
-                    } else {
-                        await sendMessage(chatId, `You said: ${text}`, env);
-                    }
+                    await handleMessage(update.message, env);
+                }
+                
+                if (update.callback_query) {
+                    await handleCallback(update.callback_query, env);
                 }
                 
                 return new Response('OK', { status: 200 });
@@ -27,7 +24,10 @@ export default {
             }
         }
         
-        // Set webhook
+        if (url.pathname === '/health') {
+            return new Response('Bot is running', { status: 200 });
+        }
+        
         if (url.pathname === '/setwebhook') {
             const botToken = env.BOT_TOKEN;
             const workerUrl = `https://${request.headers.get('host')}`;
@@ -45,17 +45,3 @@ export default {
         return new Response('Bot is ready. Visit /setwebhook', { status: 200 });
     }
 };
-
-async function sendMessage(chatId, text, env) {
-    const botToken = env.BOT_TOKEN;
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    
-    await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            text: text
-        })
-    });
-}
