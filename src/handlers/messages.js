@@ -1,6 +1,6 @@
 import { sendMessage } from '../utils/telegram.js';
 import { checkSubscription, sendForceSubMessage, isForceSubEnabled, setForceSubEnabled } from '../services/subscription.js';
-
+ 
 export async function handleMessage(message, env) {
     const chatId = message.chat.id;
     const text = message.text || '';
