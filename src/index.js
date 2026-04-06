@@ -1,9 +1,11 @@
 import { handleStart } from './handlers/start.js';
 import { handleForceSub } from './handlers/forcesub.js';
 import { handleArtistSearch } from './handlers/artists.js';
+import { handleTrackSearch } from './handlers/tracks.js';
 import { handleCallback } from './handlers/callbacks.js';
 import { checkSubscription, sendForceSubMessage } from './services/subscription.js';
 import { sendMessage } from './utils/telegram.js';
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -20,13 +22,11 @@ export default {
                     const userId = message.from.id;
                     const isPrivateChat = chatId === userId;
                     
-                    // Admin force sub command
                     if (text.startsWith('/forcesub') && userId.toString() === env.ADMIN_ID) {
                         await handleForceSub(chatId, text, env, userId);
                         return new Response('OK', { status: 200 });
                     }
                     
-                    // Force sub check for private chats
                     if (isPrivateChat) {
                         const isSubscribed = await checkSubscription(userId, env);
                         if (!isSubscribed) {
@@ -35,14 +35,16 @@ export default {
                         }
                     }
                     
-                    // Command handlers
                     if (text === '/start') {
                         await handleStart(chatId, firstName, env);
                     } else if (text.startsWith('/artist')) {
                         const query = text.replace('/artist', '').trim();
                         await handleArtistSearch(chatId, query, env);
+                    } else if (text.startsWith('/track')) {
+                        const query = text.replace('/track', '').trim();
+                        await handleTrackSearch(chatId, query, env);
                     } else {
-                        await sendMessage(chatId, `Unknown command. Try /artist or /start`, env);
+                        await sendMessage(chatId, `Unknown command. Try /artist, /track, or /start`, env);
                     }
                 }
                 
