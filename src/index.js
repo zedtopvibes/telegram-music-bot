@@ -1,4 +1,4 @@
-// Simple test bot for @zedtopvibesbot
+// Simple test bot for @zedtopvibesbot 
 
 export default {
     async fetch(request, env) {
