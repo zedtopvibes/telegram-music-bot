@@ -115,7 +115,7 @@ async function searchTracks(chatId, query, env) {
             if (track.artwork_url.startsWith('http')) {
                 imageUrl = track.artwork_url;
             } else {
-                imageUrl = `${BASE_URL}/${track.artwork_url}`;
+                imageUrl = `${BASE_URL}${track.artwork_url}`;
             }
         }
         
@@ -158,7 +158,7 @@ async function searchArtists(chatId, query, env) {
             if (artist.image_url.startsWith('http')) {
                 imageUrl = artist.image_url;
             } else {
-                imageUrl = `${BASE_URL}/${artist.image_url}`;
+                imageUrl = `${BASE_URL}${artist.image_url}`;
             }
         }
         
@@ -203,7 +203,7 @@ async function searchAlbums(chatId, query, env) {
             if (album.cover_url.startsWith('http')) {
                 imageUrl = album.cover_url;
             } else {
-                imageUrl = `${BASE_URL}/${album.cover_url}`;
+                imageUrl = `${BASE_URL}${album.cover_url}`;
             }
         }
         
@@ -248,7 +248,7 @@ async function searchEPs(chatId, query, env) {
             if (ep.cover_url.startsWith('http')) {
                 imageUrl = ep.cover_url;
             } else {
-                imageUrl = `${BASE_URL}/${ep.cover_url}`;
+                imageUrl = `${BASE_URL}${ep.cover_url}`;
             }
         }
         
@@ -289,7 +289,7 @@ async function searchPlaylists(chatId, query, env) {
             if (playlist.cover_url.startsWith('http')) {
                 imageUrl = playlist.cover_url;
             } else {
-                imageUrl = `${BASE_URL}/${playlist.cover_url}`;
+                imageUrl = `${BASE_URL}${playlist.cover_url}`;
             }
         }
         
@@ -330,7 +330,7 @@ async function searchCompilations(chatId, query, env) {
             if (compilation.cover_url.startsWith('http')) {
                 imageUrl = compilation.cover_url;
             } else {
-                imageUrl = `${BASE_URL}/${compilation.cover_url}`;
+                imageUrl = `${BASE_URL}${compilation.cover_url}`;
             }
         }
         
