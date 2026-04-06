@@ -2,7 +2,7 @@ export async function sendMessage(chatId, text, env, replyMarkup = null) {
     const botToken = env.BOT_TOKEN;
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     
-    const body = { chat_id: chatId, text: text };
+    const body = { chat_id: chatId, text: text, parse_mode: 'Markdown' };
     if (replyMarkup) body.reply_markup = replyMarkup;
     
     const response = await fetch(url, {
@@ -11,6 +11,32 @@ export async function sendMessage(chatId, text, env, replyMarkup = null) {
         body: JSON.stringify(body)
     });
     return await response.json();
+}
+
+export async function sendAudio(chatId, r2Key, title, env) {
+    const botToken = env.BOT_TOKEN;
+    const url = `https://api.telegram.org/bot${botToken}/sendAudio`;
+    
+    // Get audio from R2
+    const audioObject = await env.AUDIO.get(r2Key);
+    if (!audioObject) {
+        await sendMessage(chatId, `[Info]\n❌ Audio file not found`, env);
+        return;
+    }
+    
+    const audioBuffer = await audioObject.arrayBuffer();
+    const audioBlob = new Blob([audioBuffer]);
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('audio', audioBlob, r2Key.split('/').pop());
+    formData.append('caption', `🎵 ${title}\n📌 Zedtopvibes.Com | Zambian Music`);
+    
+    await fetch(url, {
+        method: 'POST',
+        body: formData
+    });
 }
 
 export async function deleteMessage(chatId, messageId, env) {
