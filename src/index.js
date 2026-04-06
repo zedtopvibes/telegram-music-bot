@@ -1,10 +1,9 @@
-// Telegram Bot for @zedtopvibesbot with Force Sub
+// Telegram Bot for @zedtopvibesbot with Force Sub Buttons
 
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         
-        // Handle webhook requests from Telegram
         if (url.pathname === '/webhook' && request.method === 'POST') {
             try {
                 const update = await request.json();
@@ -16,12 +15,10 @@ export default {
             }
         }
         
-        // Health check
         if (url.pathname === '/health') {
             return new Response('Bot is running', { status: 200 });
         }
         
-        // Setup webhook
         if (url.pathname === '/setwebhook') {
             const botToken = env.BOT_TOKEN;
             const workerUrl = `https://${request.headers.get('host')}`;
@@ -41,10 +38,33 @@ export default {
 };
 
 async function handleUpdate(update, env) {
+    // Handle callback queries (button clicks)
+    if (update.callback_query) {
+        await handleCallbackQuery(update.callback_query, env);
+        return;
+    }
+    
     // Handle messages
     if (update.message) {
         await handleMessage(update.message, env);
         return;
+    }
+}
+
+async function handleCallbackQuery(callbackQuery, env) {
+    const chatId = callbackQuery.message.chat.id;
+    const data = callbackQuery.data;
+    const messageId = callbackQuery.message.message_id;
+    
+    // Answer callback to remove loading state
+    await answerCallbackQuery(callbackQuery.id);
+    
+    if (data === 'done') {
+        await deleteMessage(chatId, messageId, env);
+        await sendMessage(chatId, 
+            `[Info]\nWelcome to ZedtopVibes Bot!\n\nUse /start to begin.\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
+            env
+        );
     }
 }
 
@@ -54,88 +74,71 @@ async function handleMessage(message, env) {
     const firstName = message.from.first_name || 'User';
     const userId = message.from.id;
     
-    // Check if this is a private chat (DM)
     const isPrivateChat = chatId === userId;
     
-    // For private chats, check subscription
+    // Force sub for private chats
     if (isPrivateChat) {
         const isSubscribed = await checkSubscription(userId, env);
         
         if (!isSubscribed) {
-            const channelUsername = env.CHANNEL_USERNAME;
-            await sendMessage(chatId, 
-                `🔒 *Please join our channel first!*\n\n` +
-                `👉 Join: @${channelUsername}\n\n` +
-                `After joining, send /start again to use the bot.`,
-                env
-            );
+            await sendForceSubMessage(chatId, env);
             return;
         }
     }
     
-    // Handle commands
+    // Handle commands after subscription
     if (text === '/start') {
         await sendMessage(chatId, 
-            `🎵 *Welcome to ZedtopVibes Bot!*\n\n` +
-            `You are now subscribed to @${env.CHANNEL_USERNAME} ✅\n\n` +
-            `🔍 *Commands:*\n` +
-            `/search song <name> - Find a song\n` +
-            `/search album <name> - Find an album\n` +
-            `/search artist <name> - Find an artist\n` +
-            `/search playlist <name> - Find a playlist\n` +
-            `/search ep <name> - Find an EP\n` +
-            `/search compilation <name> - Find a compilation\n\n` +
-            `📌 *Example:*\n` +
-            `/search song Burna Boy Last Last`,
+            `[Info]\nWelcome ${firstName}! 👋\n\nBot is ready to use.\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
             env
         );
         return;
     }
     
-    // Echo for testing (will replace with search later)
-    if (text.startsWith('/search')) {
-        await sendMessage(chatId, 
-            `🔍 Search feature coming soon!\n\n` +
-            `You searched: "${text}"`,
-            env
-        );
-        return;
-    }
-    
-    // Unknown command
-    if (text.startsWith('/')) {
-        await sendMessage(chatId, 
-            `❓ Unknown command. Use /start to see available commands.`,
-            env
-        );
-        return;
-    }
+    // Echo for testing
+    await sendMessage(chatId, 
+        `[Info]\nYou said: "${text}"\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
+        env
+    );
 }
 
-// Check if user has joined the channel
-async function checkSubscription(userId, env) {
+// Send force sub message with buttons
+async function sendForceSubMessage(chatId, env) {
     const botToken = env.BOT_TOKEN;
     const channelUsername = env.CHANNEL_USERNAME;
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     
-    const url = `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@${channelUsername}&user_id=${userId}`;
+    const inlineKeyboard = {
+        inline_keyboard: [
+            [
+                {
+                    text: "Join Updates Channel",
+                    url: `https://t.me/${channelUsername}`
+                }
+            ],
+            [
+                {
+                    text: "Done",
+                    callback_data: "done"
+                }
+            ]
+        ]
+    };
     
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data.ok && data.result) {
-            const status = data.result.status;
-            // User is subscribed if status is member, administrator, or creator
-            return status === 'member' || status === 'administrator' || status === 'creator';
-        }
-        return false;
-    } catch (error) {
-        console.error('Error checking subscription:', error);
-        return false;
-    }
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            text: `Join Updates Channel to use this Bot!\n\nOnly Channel Subscribers can use the Bot!`,
+            reply_markup: inlineKeyboard
+        })
+    });
+    
+    return await response.json();
 }
 
-// Send message to Telegram
+// Send regular message
 async function sendMessage(chatId, text, env) {
     const botToken = env.BOT_TOKEN;
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -153,5 +156,63 @@ async function sendMessage(chatId, text, env) {
         return await response.json();
     } catch (error) {
         console.error('Error sending message:', error);
+    }
+}
+
+// Delete message
+async function deleteMessage(chatId, messageId, env) {
+    const botToken = env.BOT_TOKEN;
+    const url = `https://api.telegram.org/bot${botToken}/deleteMessage`;
+    
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                message_id: messageId
+            })
+        });
+    } catch (error) {
+        console.error('Error deleting message:', error);
+    }
+}
+
+// Answer callback query
+async function answerCallbackQuery(callbackQueryId) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`;
+    
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                callback_query_id: callbackQueryId
+            })
+        });
+    } catch (error) {
+        console.error('Error answering callback:', error);
+    }
+}
+
+// Check subscription
+async function checkSubscription(userId, env) {
+    const botToken = env.BOT_TOKEN;
+    const channelUsername = env.CHANNEL_USERNAME;
+    
+    const url = `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@${channelUsername}&user_id=${userId}`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.ok && data.result) {
+            const status = data.result.status;
+            return status === 'member' || status === 'administrator' || status === 'creator';
+        }
+        return false;
+    } catch (error) {
+        console.error('Error checking subscription:', error);
+        return false;
     }
 }
