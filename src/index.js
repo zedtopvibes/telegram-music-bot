@@ -55,16 +55,29 @@ async function handleCallbackQuery(callbackQuery, env) {
     const chatId = callbackQuery.message.chat.id;
     const data = callbackQuery.data;
     const messageId = callbackQuery.message.message_id;
-    
-    // Answer callback to remove loading state
-    await answerCallbackQuery(callbackQuery.id);
+    const userId = callbackQuery.from.id;
     
     if (data === 'done') {
+        // Check if user is actually subscribed
+        const isSubscribed = await checkSubscription(userId, env);
+        
+        if (!isSubscribed) {
+            // Show popup alert
+            await answerCallbackQuery(callbackQuery.id, env, {
+                text: "❌ Please join the channel first!",
+                show_alert: true
+            });
+            return;
+        }
+        
+        // Subscribed - answer callback, delete message, send welcome
+        await answerCallbackQuery(callbackQuery.id, env);
         await deleteMessage(chatId, messageId, env);
         await sendMessage(chatId, 
-            `[Info]\nWelcome to ZedtopVibes Bot!\n\nUse /start to begin.\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
+            `[Info]\nWelcome to ZedtopVibes Bot! ✅\n\nUse /start to begin.\n\n[Join updates channel]\n👉 @${env.CHANNEL_USERNAME}\n\n[Done]`,
             env
         );
+        return;
     }
 }
 
@@ -178,24 +191,35 @@ async function deleteMessage(chatId, messageId, env) {
     }
 }
 
-// Answer callback query
-async function answerCallbackQuery(callbackQueryId) {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`;
+// Answer callback query with optional alert
+async function answerCallbackQuery(callbackQueryId, env, options = {}) {
+    const botToken = env.BOT_TOKEN;
+    const url = `https://api.telegram.org/bot${botToken}/answerCallbackQuery`;
+    
+    const body = {
+        callback_query_id: callbackQueryId
+    };
+    
+    if (options.text) {
+        body.text = options.text;
+    }
+    
+    if (options.show_alert) {
+        body.show_alert = true;
+    }
     
     try {
         await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                callback_query_id: callbackQueryId
-            })
+            body: JSON.stringify(body)
         });
     } catch (error) {
         console.error('Error answering callback:', error);
     }
 }
 
-// Check subscription
+// Check if user has joined the channel
 async function checkSubscription(userId, env) {
     const botToken = env.BOT_TOKEN;
     const channelUsername = env.CHANNEL_USERNAME;
