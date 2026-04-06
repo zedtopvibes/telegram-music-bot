@@ -1,7 +1,12 @@
 // src/music.js
 
 export async function searchTracks(db, query) {
-  // We use a JOIN to get the Artist Name along with the Track details
+  // 1. Lowercase the query for better matching
+  const searchTerm = `%${query.toLowerCase()}%`;
+
+  // 2. The SQL Query
+  // Note: We use LEFT JOIN so that even if an artist is missing, 
+  // the track still shows up (artist_name will just be null).
   const sql = `
     SELECT 
       t.id, 
@@ -13,32 +18,46 @@ export async function searchTracks(db, query) {
       a.name AS artist_name,
       a.is_zambian_legend
     FROM tracks t
-    JOIN artists a ON t.artist_id = a.id
-    WHERE (t.title LIKE ?1 OR a.name LIKE ?1)
+    LEFT JOIN artists a ON t.artist_id = a.id
+    WHERE (LOWER(t.title) LIKE ?1 OR LOWER(a.name) LIKE ?1)
     AND t.deleted_at IS NULL
     LIMIT 5
   `;
 
-  const { results } = await db.prepare(sql).bind(`%${query}%`).all();
-  return results;
+  try {
+    const { results } = await db.prepare(sql).bind(searchTerm).all();
+    
+    // This log helps you see what's happening in the Cloudflare dashboard
+    console.log(`Search for "${query}" returned ${results?.length || 0} results`);
+    
+    return results || [];
+  } catch (err) {
+    console.error("D1 Search Error:", err);
+    return [];
+  }
 }
 
+// Keep your formatTrackMessage function the same
 export function formatTrackMessage(track) {
   const siteUrl = "https://zedtopvibes.com";
   
-  // Construct the full URL for the artwork
-  // Adjust the path "/storage/" if your site uses a different folder
+  // Ensure the URL is clean (handle leading slashes)
+  const cleanArtworkPath = track.artwork_url?.startsWith('/') 
+    ? track.artwork_url 
+    : `/${track.artwork_url}`;
+    
   const artwork = track.artwork_url 
-    ? `${siteUrl}/${track.artwork_url}` 
+    ? `${siteUrl}${cleanArtworkPath}` 
     : `${siteUrl}/default-cover.jpg`;
 
+  const artist = track.artist_name || "Unknown Artist";
   const legendTag = track.is_zambian_legend ? " 🇿🇲 [Legend]" : "";
 
   const caption = `
 🎵 <b>${track.title}</b>
-👤 <b>Artist:</b> ${track.artist_name}${legendTag}
+👤 <b>Artist:</b> ${artist}${legendTag}
 📂 <b>Genre:</b> ${track.genre || "N/A"}
-⏱ <b>Duration:</b> ${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}
+⏱ <b>Duration:</b> ${track.duration ? Math.floor(track.duration / 60) + ":" + (track.duration % 60).toString().padStart(2, '0') : "N/A"}
 
 Search powered by <b>ZedTopVibes</b>
   `;
