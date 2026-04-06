@@ -11,6 +11,19 @@ export async function sendMessage(chatId, text, env, replyMarkup = null) {
     return response.json();
 }
 
+export async function sendPhoto(chatId, photoUrl, caption, env, replyMarkup = null) {
+    const botToken = env.BOT_TOKEN;
+    const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+    const body = { chat_id: chatId, photo: photoUrl, caption, parse_mode: 'Markdown' };
+    if (replyMarkup) body.reply_markup = replyMarkup;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    return response.json();
+}
+
 export async function deleteMessage(chatId, messageId, env) {
     const botToken = env.BOT_TOKEN;
     const url = `https://api.telegram.org/bot${botToken}/deleteMessage`;
