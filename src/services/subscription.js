@@ -1,4 +1,4 @@
-import { sendMessage } from '../utils/telegram.js';
+import { sendMessage } from '../utils/telegram.js'; 
 
 export async function isForceSubEnabled(env) {
     const result = await env.DB.prepare(
