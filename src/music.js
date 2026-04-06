@@ -3,18 +3,25 @@
 export async function searchTracks(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
   
+  // We use your API's logic: Join through the track_artists (ta) table
   const sql = `
     SELECT 
-      t.id, 
-      t.title, 
-      t.genre,
+      t.id,
+      t.title,
+      t.artwork_url,
+      t.r2_key,
       t.duration,
+      t.genre,
       a.name AS artist_name,
       a.is_zambian_legend
     FROM tracks t
-    LEFT JOIN artists a ON t.artist_id = a.id
+    LEFT JOIN track_artists ta ON t.id = ta.track_id
+    LEFT JOIN artists a ON ta.artist_id = a.id
     WHERE (LOWER(t.title) LIKE ?1 OR LOWER(a.name) LIKE ?1)
-    AND t.deleted_at IS NULL
+      AND t.deleted_at IS NULL
+      AND t.status = 'published'
+    GROUP BY t.id
+    ORDER BY ta.is_primary DESC, ta.display_order ASC
     LIMIT 1
   `;
 
@@ -28,10 +35,10 @@ export async function searchTracks(db, query) {
 }
 
 export function formatTrackMessage(track) {
+  // Now artist_name will correctly pull from the JOIN
   const artist = track.artist_name || "Unknown Artist";
   const legendTag = track.is_zambian_legend ? " 🇿🇲 [Legend]" : "";
   
-  // Convert seconds to MM:SS
   const mins = Math.floor((track.duration || 0) / 60);
   const secs = ((track.duration || 0) % 60).toString().padStart(2, '0');
 
