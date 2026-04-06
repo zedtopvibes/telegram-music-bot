@@ -163,10 +163,10 @@ async function searchAlbums(chatId, query, env) {
             al.release_date,
             al.cover_url,
             a.name as artist_name,
-            COUNT(DISTINCT et.track_id) as track_count
+            COUNT(DISTINCT at.track_id) as track_count
         FROM albums al
         LEFT JOIN artists a ON al.artist_id = a.id
-        LEFT JOIN ep_tracks et ON al.id = et.ep_id
+        LEFT JOIN album_tracks at ON al.id = at.album_id
         WHERE al.title LIKE ? AND al.status = 'published' AND al.deleted_at IS NULL
         GROUP BY al.id
         LIMIT 5
