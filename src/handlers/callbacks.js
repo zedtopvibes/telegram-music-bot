@@ -122,4 +122,4 @@ async function handleAlbumCallback(chatId, albumId, env, callbackQueryId) {
     }
     
     await sendMessage(chatId, message, env);
-}
+} 
