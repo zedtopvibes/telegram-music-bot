@@ -19,7 +19,6 @@ export async function checkSubscription(userId, env) {
     
     const botToken = env.BOT_TOKEN;
     const channelUsername = env.CHANNEL_USERNAME;
-    
     const url = `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@${channelUsername}&user_id=${userId}`;
     
     try {
@@ -43,7 +42,6 @@ export async function sendForceSubMessage(chatId, env) {
             [{ text: "Done", callback_data: "done" }]
         ]
     };
-    
     await sendMessage(chatId, 
         `Join Updates Channel to use this Bot!\n\nOnly Channel Subscribers can use the Bot!`,
         env,
