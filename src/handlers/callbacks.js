@@ -18,6 +18,6 @@ export async function handleCallback(callbackQuery, env) {
         }
         await answerCallbackQuery(callbackQuery.id, env);
         await deleteMessage(chatId, messageId, env);
-        await sendMessage(chatId, `Welcome! ✅\n\nYou are now subscribed. Use /start to begin.`, env);
+        await sendMessage(chatId, `Welcome! ✅\n\nUse /start to begin.`, env);
     }
 }
