@@ -1,6 +1,8 @@
 import { sendMessage, sendPhoto } from '../utils/telegram.js';
 import { checkSubscription, sendForceSubMessage, isForceSubEnabled, setForceSubEnabled } from '../services/subscription.js';
 
+const BASE_URL = 'https://zedtopvibes.com';
+
 export async function handleMessage(message, env) {
     const chatId = message.chat.id;
     const text = message.text || '';
@@ -8,13 +10,11 @@ export async function handleMessage(message, env) {
     const userId = message.from.id;
     const isPrivateChat = chatId === userId;
     
-    // Admin commands
     if (text.startsWith('/forcesub') && userId.toString() === env.ADMIN_ID) {
         await handleForceSubCommand(chatId, text, env);
         return;
     }
     
-    // Force sub for private chats
     if (isPrivateChat) {
         const isSubscribed = await checkSubscription(userId, env);
         if (!isSubscribed) {
@@ -23,7 +23,6 @@ export async function handleMessage(message, env) {
         }
     }
     
-    // Handle commands
     if (text === '/start') {
         await sendMessage(chatId, `Welcome ${firstName}! 👋\n\nUse /track, /artist, /album, /ep, /playlist, or /compilation to search Zambian music.`, env);
         return;
@@ -111,8 +110,17 @@ async function searchTracks(chatId, query, env) {
             inline_keyboard: [[{ text: "🎵 View in Bot Chat", callback_data: `track_${track.id}` }]]
         };
         
+        let imageUrl = null;
         if (track.artwork_url) {
-            await sendPhoto(chatId, track.artwork_url, caption, env, inlineKeyboard);
+            if (track.artwork_url.startsWith('http')) {
+                imageUrl = track.artwork_url;
+            } else {
+                imageUrl = `${BASE_URL}/${track.artwork_url}`;
+            }
+        }
+        
+        if (imageUrl) {
+            await sendPhoto(chatId, imageUrl, caption, env, inlineKeyboard);
         } else {
             await sendMessage(chatId, caption, env, inlineKeyboard);
         }
@@ -145,8 +153,17 @@ async function searchArtists(chatId, query, env) {
     for (const artist of results.results) {
         const caption = `👤 Artist: ${artist.name}\n💽 Albums: ${artist.album_count || 0}\n📊 Total Tracks: ${artist.total_tracks || 0}`;
         
+        let imageUrl = null;
         if (artist.image_url) {
-            await sendPhoto(chatId, artist.image_url, caption, env);
+            if (artist.image_url.startsWith('http')) {
+                imageUrl = artist.image_url;
+            } else {
+                imageUrl = `${BASE_URL}/${artist.image_url}`;
+            }
+        }
+        
+        if (imageUrl) {
+            await sendPhoto(chatId, imageUrl, caption, env);
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -181,8 +198,17 @@ async function searchAlbums(chatId, query, env) {
         const year = album.release_date ? album.release_date.split('-')[0] : 'Unknown';
         const caption = `💽 Album: ${album.title}\n👤 Artist: ${album.artist_name}\n📅 Date: ${year}\n🎧 Total tracks: ${album.track_count || 0}`;
         
+        let imageUrl = null;
         if (album.cover_url) {
-            await sendPhoto(chatId, album.cover_url, caption, env);
+            if (album.cover_url.startsWith('http')) {
+                imageUrl = album.cover_url;
+            } else {
+                imageUrl = `${BASE_URL}/${album.cover_url}`;
+            }
+        }
+        
+        if (imageUrl) {
+            await sendPhoto(chatId, imageUrl, caption, env);
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -217,8 +243,17 @@ async function searchEPs(chatId, query, env) {
         const year = ep.release_date ? ep.release_date.split('-')[0] : 'Unknown';
         const caption = `💽 EP: ${ep.title}\n👤 Artist: ${ep.artist_name}\n📅 Date: ${year}\n🎧 Total tracks: ${ep.track_count || 0}`;
         
+        let imageUrl = null;
         if (ep.cover_url) {
-            await sendPhoto(chatId, ep.cover_url, caption, env);
+            if (ep.cover_url.startsWith('http')) {
+                imageUrl = ep.cover_url;
+            } else {
+                imageUrl = `${BASE_URL}/${ep.cover_url}`;
+            }
+        }
+        
+        if (imageUrl) {
+            await sendPhoto(chatId, imageUrl, caption, env);
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -249,8 +284,17 @@ async function searchPlaylists(chatId, query, env) {
     for (const playlist of results.results) {
         const caption = `📋 Playlist: ${playlist.title}\n🎧 Total tracks: ${playlist.track_count || 0}`;
         
+        let imageUrl = null;
         if (playlist.cover_url) {
-            await sendPhoto(chatId, playlist.cover_url, caption, env);
+            if (playlist.cover_url.startsWith('http')) {
+                imageUrl = playlist.cover_url;
+            } else {
+                imageUrl = `${BASE_URL}/${playlist.cover_url}`;
+            }
+        }
+        
+        if (imageUrl) {
+            await sendPhoto(chatId, imageUrl, caption, env);
         } else {
             await sendMessage(chatId, caption, env);
         }
@@ -281,8 +325,17 @@ async function searchCompilations(chatId, query, env) {
     for (const compilation of results.results) {
         const caption = `📀 Compilation: ${compilation.title}\n🎧 Total tracks: ${compilation.track_count || 0}`;
         
+        let imageUrl = null;
         if (compilation.cover_url) {
-            await sendPhoto(chatId, compilation.cover_url, caption, env);
+            if (compilation.cover_url.startsWith('http')) {
+                imageUrl = compilation.cover_url;
+            } else {
+                imageUrl = `${BASE_URL}/${compilation.cover_url}`;
+            }
+        }
+        
+        if (imageUrl) {
+            await sendPhoto(chatId, imageUrl, caption, env);
         } else {
             await sendMessage(chatId, caption, env);
         }
