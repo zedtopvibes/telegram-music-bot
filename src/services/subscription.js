@@ -1,4 +1,3 @@
-// Check if user has joined the channel
 export async function checkSubscription(userId, env) {
     const botToken = env.BOT_TOKEN;
     const channelUsername = env.CHANNEL_USERNAME;
@@ -20,28 +19,16 @@ export async function checkSubscription(userId, env) {
     }
 }
 
-// Send force sub message with buttons
 export async function sendForceSubMessage(chatId, env) {
     const channelUsername = env.CHANNEL_USERNAME;
+    const { sendMessage } = await import('../utils/telegram.js');
     
     const inlineKeyboard = {
         inline_keyboard: [
-            [
-                {
-                    text: "Join Updates Channel",
-                    url: `https://t.me/${channelUsername}`
-                }
-            ],
-            [
-                {
-                    text: "Done",
-                    callback_data: "done"
-                }
-            ]
+            [{ text: "Join Updates Channel", url: `https://t.me/${channelUsername}` }],
+            [{ text: "Done", callback_data: "done" }]
         ]
     };
-    
-    const { sendMessage } = await import('../utils/telegram.js');
     
     await sendMessage(chatId, 
         `Join Updates Channel to use this Bot!\n\nOnly Channel Subscribers can use the Bot!`,
