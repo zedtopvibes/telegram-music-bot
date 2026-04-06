@@ -33,11 +33,163 @@ export async function handleMessage(message, env) {
         return;
     }
     
+    // Handle search commands
+    if (text.startsWith('/track')) {
+        const query = text.replace('/track', '').trim();
+        if (query) {
+            await searchTracks(chatId, query, env);
+        } else {
+            await sendMessage(chatId, `[Info]\nUsage: /track <song name>\n\nExample: /track Ice Spice Bikini Bottom`, env);
+        }
+        return;
+    }
+    
+    if (text.startsWith('/artist')) {
+        const query = text.replace('/artist', '').trim();
+        if (query) {
+            await searchArtists(chatId, query, env);
+        } else {
+            await sendMessage(chatId, `[Info]\nUsage: /artist <artist name>\n\nExample: /artist Ice Spice`, env);
+        }
+        return;
+    }
+    
+    if (text.startsWith('/album')) {
+        const query = text.replace('/album', '').trim();
+        if (query) {
+            await searchAlbums(chatId, query, env);
+        } else {
+            await sendMessage(chatId, `[Info]\nUsage: /album <album name>\n\nExample: /album Like?`, env);
+        }
+        return;
+    }
+    
     // Echo for testing
     await sendMessage(chatId, 
-        `[Info]\nYou said: "${text}"`,
+        `[Info]\nYou said: "${text}"\n\nUse /track, /artist, or /album to search Zambian music.`,
         env
     );
+}
+
+async function searchTracks(chatId, query, env) {
+    const searchTerm = `%${query}%`;
+    
+    const results = await env.DB.prepare(`
+        SELECT 
+            t.id,
+            t.title,
+            t.duration,
+            t.plays,
+            a.name as artist_name
+        FROM tracks t
+        LEFT JOIN artists a ON t.artist_id = a.id
+        WHERE (t.title LIKE ? OR a.name LIKE ?)
+        AND t.status = 'published'
+        LIMIT 5
+    `).bind(searchTerm, searchTerm).all();
+    
+    if (!results.results || results.results.length === 0) {
+        await sendMessage(chatId, `[Info]\n❌ No tracks found for "${query}"`, env);
+        return;
+    }
+    
+    for (const track of results.results) {
+        const duration = formatDuration(track.duration);
+        const plays = track.plays ? track.plays.toLocaleString() : '0';
+        
+        const inlineKeyboard = {
+            inline_keyboard: [
+                [{ text: "🎵 View in Bot Chat", callback_data: `track_${track.id}` }]
+            ]
+        };
+        
+        await sendMessage(chatId, 
+            `🇿🇲 *${track.artist_name} - ${track.title}*\n` +
+            `⏱️ Duration: ${duration}\n` +
+            `🎧 Plays: ${plays}`,
+            env,
+            inlineKeyboard
+        );
+    }
+}
+
+async function searchArtists(chatId, query, env) {
+    const searchTerm = `%${query}%`;
+    
+    const results = await env.DB.prepare(`
+        SELECT 
+            id,
+            name,
+            total_tracks,
+            total_plays
+        FROM artists
+        WHERE name LIKE ?
+        AND status = 'published'
+        LIMIT 5
+    `).bind(searchTerm).all();
+    
+    if (!results.results || results.results.length === 0) {
+        await sendMessage(chatId, `[Info]\n❌ No artists found for "${query}"`, env);
+        return;
+    }
+    
+    for (const artist of results.results) {
+        const tracks = artist.total_tracks || 0;
+        const plays = artist.total_plays ? artist.total_plays.toLocaleString() : '0';
+        
+        const inlineKeyboard = {
+            inline_keyboard: [
+                [{ text: "🎵 View Songs", callback_data: `artist_${artist.id}` }]
+            ]
+        };
+        
+        await sendMessage(chatId, 
+            `🇿🇲 *${artist.name}*\n` +
+            `🎤 Tracks: ${tracks}\n` +
+            `🎧 Total Plays: ${plays}`,
+            env,
+            inlineKeyboard
+        );
+    }
+}
+
+async function searchAlbums(chatId, query, env) {
+    const searchTerm = `%${query}%`;
+    
+    const results = await env.DB.prepare(`
+        SELECT 
+            al.id,
+            al.title,
+            al.release_date,
+            a.name as artist_name
+        FROM albums al
+        LEFT JOIN artists a ON al.artist_id = a.id
+        WHERE al.title LIKE ?
+        AND al.status = 'published'
+        LIMIT 5
+    `).bind(searchTerm).all();
+    
+    if (!results.results || results.results.length === 0) {
+        await sendMessage(chatId, `[Info]\n❌ No albums found for "${query}"`, env);
+        return;
+    }
+    
+    for (const album of results.results) {
+        const year = album.release_date ? album.release_date.split('-')[0] : 'Unknown';
+        
+        const inlineKeyboard = {
+            inline_keyboard: [
+                [{ text: "🎵 View Album", callback_data: `album_${album.id}` }]
+            ]
+        };
+        
+        await sendMessage(chatId, 
+            `🇿🇲 *${album.artist_name} - ${album.title}*\n` +
+            `📅 Year: ${year}`,
+            env,
+            inlineKeyboard
+        );
+    }
 }
 
 async function handleForceSubCommand(chatId, text, env) {
@@ -68,4 +220,11 @@ async function handleForceSubCommand(chatId, text, env) {
             env
         );
     }
+}
+
+function formatDuration(seconds) {
+    if (!seconds) return 'Unknown';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
