@@ -26,18 +26,16 @@ export async function handleMessage(message, env) {
     
     // Handle commands after subscription
     if (text === '/start') {
-        const forceSubEnabled = await isForceSubEnabled(env);
-        const statusText = forceSubEnabled ? '✅ ON' : '❌ OFF';
-        
         await sendMessage(chatId, 
-            `[Info]\nWelcome ${firstName}! 👋\n\nBot is ready to use.\n\n🔒 Force Sub: ${statusText}\n\n[Done]`,
+            `[Info]\nWelcome ${firstName}! 👋\n\nBot is ready to use.`,
             env
         );
         return;
     }
     
+    // Echo for testing
     await sendMessage(chatId, 
-        `[Info]\nYou said: "${text}"\n\n[Done]`,
+        `[Info]\nYou said: "${text}"`,
         env
     );
 }
@@ -49,24 +47,24 @@ async function handleForceSubCommand(chatId, text, env) {
     if (action === 'on') {
         await setForceSubEnabled(true, env);
         await sendMessage(chatId, 
-            `[Info]\n✅ Force Sub has been **ENABLED**\n\nNew users must join @${env.CHANNEL_USERNAME} to use the bot.\n\n[Done]`,
+            `[Info]\n✅ Force Sub ENABLED\n\nUsers must join @${env.CHANNEL_USERNAME}`,
             env
         );
     } else if (action === 'off') {
         await setForceSubEnabled(false, env);
         await sendMessage(chatId, 
-            `[Info]\n❌ Force Sub has been **DISABLED**\n\nAnyone can use the bot without joining the channel.\n\n[Done]`,
+            `[Info]\n❌ Force Sub DISABLED\n\nAnyone can use the bot`,
             env
         );
     } else if (action === 'status') {
         const isEnabled = await isForceSubEnabled(env);
         await sendMessage(chatId, 
-            `[Info]\n🔒 Force Sub is currently: **${isEnabled ? 'ON' : 'OFF'}**\n\nTo change: /forcesub on  or  /forcesub off\n\n[Done]`,
+            `[Info]\n🔒 Force Sub is: **${isEnabled ? 'ON' : 'OFF'}**`,
             env
         );
     } else {
         await sendMessage(chatId, 
-            `[Info]\n📋 **Force Sub Commands:**\n\n/forcesub on - Enable force sub\n/forcesub off - Disable force sub\n/forcesub status - Check current status\n\n[Done]`,
+            `[Info]\n📋 **Force Sub Commands:**\n\n/forcesub on - Enable\n/forcesub off - Disable\n/forcesub status - Check status`,
             env
         );
     }
