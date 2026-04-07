@@ -1,8 +1,5 @@
-// src/albums.js 
+// src/albums.js
 
-/**
- * Finds an album and its artist
- */
 export async function searchAlbum(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
   
@@ -13,23 +10,21 @@ export async function searchAlbum(db, query) {
     WHERE (LOWER(a.title) LIKE ?1 OR LOWER(ar.name) LIKE ?1)
       AND a.deleted_at IS NULL
       AND a.status = 'published'
+    ORDER BY (LOWER(a.title) = LOWER(?2)) DESC, a.created_at DESC
     LIMIT 1
   `;
 
   try {
-    return await db.prepare(sql).bind(searchTerm).first();
+    return await db.prepare(sql).bind(searchTerm, query).first();
   } catch (err) {
     console.error("D1 Album Search Error:", err);
     return null;
   }
 }
 
-/**
- * Fetches tracks using the 'album_tracks' pivot table (Matches your API)
- */
 export async function getTracksForAlbum(db, albumId) {
   const sql = `
-    SELECT t.id, t.title, t.r2_key, at.track_number
+    SELECT t.id, t.title, at.track_number
     FROM tracks t
     JOIN album_tracks at ON t.id = at.track_id
     WHERE at.album_id = ? 
@@ -47,10 +42,16 @@ export async function getTracksForAlbum(db, albumId) {
   }
 }
 
-/**
- * Text-only UI for Albums (keeps tracklists clean)
- */
 export function formatAlbumUI(album, tracks) {
+  const siteUrl = "https://zedtopvibes.com";
+  
+  // Resolve Image
+  let artwork = `${siteUrl}/apple-touch-icon.png`;
+  if (album.cover_url) {
+    const cleanPath = album.cover_url.startsWith('/') ? album.cover_url : `/${album.cover_url}`;
+    artwork = `${siteUrl}${cleanPath}`;
+  }
+
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
   caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
@@ -66,5 +67,5 @@ export function formatAlbumUI(album, tracks) {
     }]);
   });
 
-  return { caption, keyboard };
+  return { caption, artwork, keyboard };
 }
