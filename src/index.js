@@ -1,6 +1,7 @@
 import { handleStart } from "./commands/start.js";
 import { handleForceSub } from "./commands/forcesub.js";
 import { handleSearch } from "./commands/search.js";
+import { handleArtist } from "./commands/artist.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
 export default {
@@ -100,6 +101,22 @@ async function handleUpdate(update, env) {
     if (text === "/start") {
       await handleStart(chatId, firstName, env);
     } 
+    // Handle /artist command
+    else if (text.startsWith("/artist")) {
+      const artistName = text.replace("/artist", "").trim();
+      if (artistName) {
+        await handleArtist(chatId, artistName, env);
+      } else {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Usage: /artist [artist name]\nExample: /artist Kanina"
+          })
+        });
+      }
+    }
     // Handle search (any text that doesn't start with /)
     else if (text && !text.startsWith("/")) {
       await handleSearch(chatId, text, env);
