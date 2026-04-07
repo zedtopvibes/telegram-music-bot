@@ -30,17 +30,17 @@ async function handleUpdate(update, env) {
     const messageId = update.callback_query.message.message_id;
     
     if (data === "check_subscription") {
-      // Acknowledge callback
-      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callback_query_id: update.callback_query.id })
-      });
-      
       // Re-check subscription
       const subCheck = await checkSubscription(chatId, env);
       
       if (subCheck.allowed) {
+        // Acknowledge callback first
+        await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_query_id: update.callback_query.id })
+        });
+        
         // Edit original message to confirm success
         await fetch(`${TELEGRAM_API}/editMessageText`, {
           method: "POST",
@@ -52,13 +52,13 @@ async function handleUpdate(update, env) {
           })
         });
       } else {
-        // Keep the same message, user still not joined
+        // User still not joined - show popup alert
         await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             callback_query_id: update.callback_query.id,
-            text: "You haven't joined the channel yet. Please join first.",
+            text: "❌ You haven't joined the channel yet. Please join first!",
             show_alert: true
           })
         });
