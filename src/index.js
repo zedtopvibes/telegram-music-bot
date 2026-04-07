@@ -8,6 +8,8 @@ import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
+const CDN_URL = "https://files.zedtopvibes.com";
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST" && new URL(request.url).pathname === "/webhook") {
@@ -126,8 +128,6 @@ async function handleUpdate(update, env) {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\nClick a track button to play (coming soon)`;
-      
       const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -199,8 +199,6 @@ async function handleUpdate(update, env) {
       } else {
         responseText += `No tracks found.`;
       }
-      
-      responseText += `\nClick a track button to play (coming soon)`;
       
       const keyboard = { inline_keyboard: buttons };
       
@@ -274,8 +272,6 @@ async function handleUpdate(update, env) {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\nClick a track button to play (coming soon)`;
-      
       const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -345,8 +341,6 @@ async function handleUpdate(update, env) {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\nClick a track button to play (coming soon)`;
-      
       const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -361,19 +355,57 @@ async function handleUpdate(update, env) {
       return;
     }
     
-    // Handle track button click (placeholder - Phase 3)
+    // Handle track button click - Send audio from CDN
     if (data.startsWith("track_")) {
       const trackId = data.replace("track_", "");
       
+      // Acknowledge callback
       await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          callback_query_id: update.callback_query.id,
-          text: "🎵 Play feature coming soon! Phase 3 will add audio streaming.",
-          show_alert: true
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      // Get track details from D1
+      const trackQuery = `
+        SELECT t.title, t.filename, a.name as artist_name
+        FROM tracks t
+        LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+        LEFT JOIN artists a ON ta.artist_id = a.id
+        WHERE t.id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+      `;
+      
+      const track = await env.DB.prepare(trackQuery).bind(trackId).first();
+      
+      if (!track) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "❌ Track not found."
+          })
+        });
+        return;
+      }
+      
+      // Construct CDN URL
+      const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
+      const artistName = track.artist_name || "Unknown Artist";
+      
+      // Send audio to Telegram
+      await fetch(`${TELEGRAM_API}/sendAudio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          audio: audioUrl,
+          title: track.title,
+          performer: artistName,
+          caption: `🎵 ${track.title}\n🎤 ${artistName}`
         })
       });
+      
       return;
     }
     
