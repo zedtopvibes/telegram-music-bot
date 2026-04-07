@@ -1,5 +1,9 @@
 // src/music.js
 
+/**
+ * Searches for a track using a many-to-many join 
+ * to ensure artist names are pulled correctly.
+ */
 export async function searchTracks(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
   
@@ -32,6 +36,9 @@ export async function searchTracks(db, query) {
   }
 }
 
+/**
+ * Formats the message data and constructs the artwork URL.
+ */
 export function formatTrackMessage(track) {
   const artist = track.artist_name || "Unknown Artist";
   const legendTag = track.is_zambian_legend ? " 🇿🇲 [Legend]" : "";
@@ -39,7 +46,6 @@ export function formatTrackMessage(track) {
   const mins = Math.floor((track.duration || 0) / 60);
   const secs = ((track.duration || 0) % 60).toString().padStart(2, '0');
 
-  // Logic: artwork_url in DB is "/api/cover/..."
   const siteUrl = "https://zedtopvibes.com";
   let artwork = `${siteUrl}/apple-touch-icon.png`; 
 
