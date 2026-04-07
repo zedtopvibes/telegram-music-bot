@@ -58,10 +58,12 @@ export default {
       ]);
 
       if (albumResult) {
-        // ALBUM FOUND: Show as clean Text List
+        // ALBUM FOUND: Now updated to show with Image 🖼️
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
-        const { caption, keyboard } = formatAlbumUI(albumResult, tracks);
-        await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
+        const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
+        
+        // Switched from sendMessage to sendPhoto
+        await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
 
       } else if (trackResults.length > 0) {
         // TRACK FOUND: Show with Image 🖼️
@@ -77,7 +79,8 @@ export default {
       }
 
     } catch (err) {
-      console.error(err);
+      // Logic to prevent the bot from going silent on internal errors
+      console.error("Worker Execution Error:", err);
     }
     return new Response("OK");
   }
