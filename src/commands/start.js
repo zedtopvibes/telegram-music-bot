@@ -1,5 +1,5 @@
 export async function handleStart(chatId, firstName, env) {
-  const BOT_TOKEN = env.BOT_TOKEN;
+  const BOT_TOKEN = env.BOT_TOKEN; 
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
   const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
