@@ -196,6 +196,8 @@ async function handleUpdate(update, env) {
           responseText += `${number}. ${track.title}\n`;
           buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
+        // Add Get All button
+        buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
       } else {
         responseText += `No tracks found.`;
       }
@@ -268,6 +270,8 @@ async function handleUpdate(update, env) {
           responseText += `${number}. ${track.title}\n`;
           buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
+        // Add Get All button
+        buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
       } else {
         responseText += `No tracks found.`;
       }
@@ -337,6 +341,8 @@ async function handleUpdate(update, env) {
           responseText += `${number}. ${track.title}\n`;
           buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
+        // Add Get All button
+        buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
       } else {
         responseText += `No tracks found.`;
       }
@@ -355,18 +361,208 @@ async function handleUpdate(update, env) {
       return;
     }
     
-    // Handle track button click - Send audio from CDN
-    if (data.startsWith("track_")) {
-      const trackId = data.replace("track_", "");
+    // Handle Get All button for Album
+    if (data.startsWith("getall_album_")) {
+      const albumId = data.replace("getall_album_", "");
       
-      // Acknowledge callback
       await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
       
-      // Get track details from D1
+      const tracksQuery = `
+        SELECT t.id, t.title, t.filename, a.name as artist_name
+        FROM album_tracks at
+        LEFT JOIN tracks t ON at.track_id = t.id
+        LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+        LEFT JOIN artists a ON ta.artist_id = a.id
+        WHERE at.album_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        ORDER BY at.track_number
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(albumId).all();
+      
+      if (!tracks.results || tracks.results.length === 0) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "No tracks found in this album."
+          })
+        });
+        return;
+      }
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `📀 Sending ${tracks.results.length} tracks from this album...`
+        })
+      });
+      
+      for (const track of tracks.results) {
+        const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
+        const artistName = track.artist_name || "Unknown Artist";
+        
+        await fetch(`${TELEGRAM_API}/sendAudio`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            audio: audioUrl,
+            title: track.title,
+            performer: artistName,
+            caption: `🎵 ${track.title}\n🎤 ${artistName}`
+          })
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      return;
+    }
+    
+    // Handle Get All button for EP
+    if (data.startsWith("getall_ep_")) {
+      const epId = data.replace("getall_ep_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      const tracksQuery = `
+        SELECT t.id, t.title, t.filename, a.name as artist_name
+        FROM ep_tracks et
+        LEFT JOIN tracks t ON et.track_id = t.id
+        LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+        LEFT JOIN artists a ON ta.artist_id = a.id
+        WHERE et.ep_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        ORDER BY et.track_number
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(epId).all();
+      
+      if (!tracks.results || tracks.results.length === 0) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "No tracks found in this EP."
+          })
+        });
+        return;
+      }
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `🎵 Sending ${tracks.results.length} tracks from this EP...`
+        })
+      });
+      
+      for (const track of tracks.results) {
+        const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
+        const artistName = track.artist_name || "Unknown Artist";
+        
+        await fetch(`${TELEGRAM_API}/sendAudio`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            audio: audioUrl,
+            title: track.title,
+            performer: artistName,
+            caption: `🎵 ${track.title}\n🎤 ${artistName}`
+          })
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      return;
+    }
+    
+    // Handle Get All button for Playlist
+    if (data.startsWith("getall_playlist_")) {
+      const playlistId = data.replace("getall_playlist_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      const tracksQuery = `
+        SELECT t.id, t.title, t.filename, a.name as artist_name
+        FROM playlist_tracks pt
+        LEFT JOIN tracks t ON pt.track_id = t.id
+        LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+        LEFT JOIN artists a ON ta.artist_id = a.id
+        WHERE pt.playlist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        ORDER BY pt.position
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(playlistId).all();
+      
+      if (!tracks.results || tracks.results.length === 0) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "No tracks found in this playlist."
+          })
+        });
+        return;
+      }
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `📋 Sending ${tracks.results.length} tracks from this playlist...`
+        })
+      });
+      
+      for (const track of tracks.results) {
+        const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
+        const artistName = track.artist_name || "Unknown Artist";
+        
+        await fetch(`${TELEGRAM_API}/sendAudio`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            audio: audioUrl,
+            title: track.title,
+            performer: artistName,
+            caption: `🎵 ${track.title}\n🎤 ${artistName}`
+          })
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      return;
+    }
+    
+    // Handle track button click - Send audio from CDN
+    if (data.startsWith("track_")) {
+      const trackId = data.replace("track_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
       const trackQuery = `
         SELECT t.title, t.filename, a.name as artist_name
         FROM tracks t
@@ -389,11 +585,9 @@ async function handleUpdate(update, env) {
         return;
       }
       
-      // Construct CDN URL
       const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
       const artistName = track.artist_name || "Unknown Artist";
       
-      // Send audio to Telegram
       await fetch(`${TELEGRAM_API}/sendAudio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
