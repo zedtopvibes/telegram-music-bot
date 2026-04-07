@@ -1,6 +1,7 @@
 import { handleStart } from "./commands/start.js";
 import { handleForceSub } from "./commands/forcesub.js";
 import { handleSearch } from "./commands/search.js";
+import { handleTrack } from "./commands/track.js";
 import { handleArtist } from "./commands/artist.js";
 import { handleAlbum } from "./commands/album.js";
 import { handleEp } from "./commands/ep.js";
@@ -28,25 +29,23 @@ async function handleUpdate(update, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
-  // Handle callback queries (Done button)
+  // Handle callback queries (button clicks)
   if (update.callback_query) {
     const chatId = update.callback_query.message.chat.id;
     const data = update.callback_query.data;
     const messageId = update.callback_query.message.message_id;
     
+    // Handle subscription check button
     if (data === "check_subscription") {
-      // Re-check subscription
       const subCheck = await checkSubscription(chatId, env);
       
       if (subCheck.allowed) {
-        // Acknowledge callback first
         await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ callback_query_id: update.callback_query.id })
         });
         
-        // Edit original message to confirm success
         await fetch(`${TELEGRAM_API}/editMessageText`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -57,7 +56,6 @@ async function handleUpdate(update, env) {
           })
         });
       } else {
-        // User still not joined - show popup alert
         await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -68,7 +66,273 @@ async function handleUpdate(update, env) {
           })
         });
       }
+      return;
     }
+    
+    // Handle artist button click
+    if (data.startsWith("artist_")) {
+      const artistId = data.replace("artist_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      const artistQuery = `
+        SELECT name, bio, country FROM artists 
+        WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
+      
+      if (!artist) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Artist not found."
+          })
+        });
+        return;
+      }
+      
+      const tracksQuery = `
+        SELECT t.id, t.title
+        FROM tracks t
+        LEFT JOIN track_artists ta ON t.id = ta.track_id
+        WHERE ta.artist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        GROUP BY t.id
+        ORDER BY t.title
+        LIMIT 20
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
+      
+      let responseText = `🎤 ${artist.name}\n\n`;
+      if (artist.bio) responseText += `${artist.bio}\n\n`;
+      if (artist.country) responseText += `📍 Country: ${artist.country}\n\n`;
+      responseText += `🎵 Tracks:\n`;
+      
+      if (tracks.results && tracks.results.length > 0) {
+        tracks.results.forEach((track, index) => {
+          responseText += `${index + 1}. ${track.title}\n`;
+        });
+      } else {
+        responseText += `No tracks found.`;
+      }
+      
+      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: responseText
+        })
+      });
+      return;
+    }
+    
+    // Handle album button click
+    if (data.startsWith("album_")) {
+      const albumId = data.replace("album_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      const albumQuery = `
+        SELECT title, description, release_date, genre, label
+        FROM albums
+        WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const album = await env.DB.prepare(albumQuery).bind(albumId).first();
+      
+      if (!album) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Album not found."
+          })
+        });
+        return;
+      }
+      
+      const tracksQuery = `
+        SELECT t.id, t.title, at.track_number
+        FROM album_tracks at
+        LEFT JOIN tracks t ON at.track_id = t.id
+        WHERE at.album_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        ORDER BY at.track_number
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(albumId).all();
+      
+      let responseText = `💿 ALBUM: ${album.title}\n\n`;
+      if (album.description) responseText += `${album.description}\n\n`;
+      if (album.release_date) responseText += `📅 Release: ${album.release_date}\n`;
+      if (album.genre) responseText += `🎸 Genre: ${album.genre}\n`;
+      if (album.label) responseText += `🏷️ Label: ${album.label}\n\n`;
+      responseText += `🎵 Tracklist:\n`;
+      
+      if (tracks.results && tracks.results.length > 0) {
+        tracks.results.forEach((track, index) => {
+          responseText += `${index + 1}. ${track.title}\n`;
+        });
+      } else {
+        responseText += `No tracks found.`;
+      }
+      
+      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: responseText
+        })
+      });
+      return;
+    }
+    
+    // Handle EP button click
+    if (data.startsWith("ep_")) {
+      const epId = data.replace("ep_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      const epQuery = `
+        SELECT title, description, release_date, genre, label
+        FROM eps
+        WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const ep = await env.DB.prepare(epQuery).bind(epId).first();
+      
+      if (!ep) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "EP not found."
+          })
+        });
+        return;
+      }
+      
+      const tracksQuery = `
+        SELECT t.id, t.title, et.track_number
+        FROM ep_tracks et
+        LEFT JOIN tracks t ON et.track_id = t.id
+        WHERE et.ep_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        ORDER BY et.track_number
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(epId).all();
+      
+      let responseText = `🎵 EP: ${ep.title}\n\n`;
+      if (ep.description) responseText += `${ep.description}\n\n`;
+      if (ep.release_date) responseText += `📅 Release: ${ep.release_date}\n`;
+      if (ep.genre) responseText += `🎸 Genre: ${ep.genre}\n`;
+      if (ep.label) responseText += `🏷️ Label: ${ep.label}\n\n`;
+      responseText += `🎵 Tracklist:\n`;
+      
+      if (tracks.results && tracks.results.length > 0) {
+        tracks.results.forEach((track, index) => {
+          responseText += `${index + 1}. ${track.title}\n`;
+        });
+      } else {
+        responseText += `No tracks found.`;
+      }
+      
+      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: responseText
+        })
+      });
+      return;
+    }
+    
+    // Handle Playlist button click
+    if (data.startsWith("playlist_")) {
+      const playlistId = data.replace("playlist_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      const playlistQuery = `
+        SELECT name, description
+        FROM playlists
+        WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
+      
+      if (!playlist) {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Playlist not found."
+          })
+        });
+        return;
+      }
+      
+      const tracksQuery = `
+        SELECT t.id, t.title, pt.position
+        FROM playlist_tracks pt
+        LEFT JOIN tracks t ON pt.track_id = t.id
+        WHERE pt.playlist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+        ORDER BY pt.position
+      `;
+      
+      const tracks = await env.DB.prepare(tracksQuery).bind(playlistId).all();
+      
+      let responseText = `📋 PLAYLIST: ${playlist.name}\n\n`;
+      if (playlist.description) responseText += `${playlist.description}\n\n`;
+      responseText += `🎵 Tracks:\n`;
+      
+      if (tracks.results && tracks.results.length > 0) {
+        tracks.results.forEach((track, index) => {
+          responseText += `${index + 1}. ${track.title}\n`;
+        });
+      } else {
+        responseText += `No tracks found.`;
+      }
+      
+      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: responseText
+        })
+      });
+      return;
+    }
+    
     return;
   }
   
@@ -103,7 +367,23 @@ async function handleUpdate(update, env) {
     // Handle /start command
     if (text === "/start") {
       await handleStart(chatId, firstName, env);
-    } 
+    }
+    // Handle /track command
+    else if (text.startsWith("/track")) {
+      const trackQuery = text.replace("/track", "").trim();
+      if (trackQuery) {
+        await handleTrack(chatId, trackQuery, env);
+      } else {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Usage: /track [song name or artist]\nExample: /track Kanina"
+          })
+        });
+      }
+    }
     // Handle /artist command
     else if (text.startsWith("/artist")) {
       const artistName = text.replace("/artist", "").trim();
@@ -168,10 +448,10 @@ async function handleUpdate(update, env) {
         });
       }
     }
-    // Handle search (any text that doesn't start with /)
+    // Handle search - any text that doesn't start with / (returns content listing with buttons)
     else if (text && !text.startsWith("/")) {
       await handleSearch(chatId, text, env);
-    } 
+    }
     // Handle unknown commands
     else if (text.startsWith("/")) {
       await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -179,7 +459,7 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "Command not recognized. Try /start"
+          text: "Command not recognized. Try /start, /track, /artist, /album, /ep, or /playlist"
         })
       });
     }
