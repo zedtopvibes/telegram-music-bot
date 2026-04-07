@@ -1,5 +1,6 @@
 import { handleStart } from "./commands/start.js";
 import { handleForceSub } from "./commands/forcesub.js";
+import { handleSearch } from "./commands/search.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
 export default {
@@ -98,17 +99,13 @@ async function handleUpdate(update, env) {
     // Handle /start command
     if (text === "/start") {
       await handleStart(chatId, firstName, env);
-    } else if (text && !text.startsWith("/")) {
-      // Future search feature
-      await fetch(`${TELEGRAM_API}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `You said: ${text}`
-        })
-      });
-    } else if (text.startsWith("/")) {
+    } 
+    // Handle search (any text that doesn't start with /)
+    else if (text && !text.startsWith("/")) {
+      await handleSearch(chatId, text, env);
+    } 
+    // Handle unknown commands
+    else if (text.startsWith("/")) {
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
