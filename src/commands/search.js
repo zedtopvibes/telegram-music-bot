@@ -2,59 +2,98 @@ export async function handleSearch(chatId, query, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
-  // Search tracks by title or artist name (any artist, not just primary)
-  const searchQuery = `
-    SELECT 
-      t.id,
-      t.title,
-      t.slug,
-      a.name as artist_name,
-      a.slug as artist_slug
-    FROM tracks t
-    LEFT JOIN track_artists ta ON t.id = ta.track_id
-    LEFT JOIN artists a ON ta.artist_id = a.id
-    WHERE (t.title LIKE ? OR a.name LIKE ?)
-      AND t.deleted_at IS NULL
-      AND t.status = 'published'
-    GROUP BY t.id
-    ORDER BY t.plays DESC
-    LIMIT 10
+  // Search for artists, albums, eps, playlists
+  const artistsQuery = `
+    SELECT id, name, 'artist' as type
+    FROM artists
+    WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
+    LIMIT 5
+  `;
+  
+  const albumsQuery = `
+    SELECT id, title, 'album' as type
+    FROM albums
+    WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published'
+    LIMIT 5
+  `;
+  
+  const epsQuery = `
+    SELECT id, title, 'ep' as type
+    FROM eps
+    WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published'
+    LIMIT 5
+  `;
+  
+  const playlistsQuery = `
+    SELECT id, name, 'playlist' as type
+    FROM playlists
+    WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
+    LIMIT 5
   `;
   
   const searchTerm = `%${query}%`;
-  const results = await env.DB.prepare(searchQuery)
-    .bind(searchTerm, searchTerm)
-    .all();
   
-  if (!results.results || results.results.length === 0) {
+  const [artists, albums, eps, playlists] = await Promise.all([
+    env.DB.prepare(artistsQuery).bind(searchTerm).all(),
+    env.DB.prepare(albumsQuery).bind(searchTerm).all(),
+    env.DB.prepare(epsQuery).bind(searchTerm).all(),
+    env.DB.prepare(playlistsQuery).bind(searchTerm).all()
+  ]);
+  
+  // Combine all results
+  const results = [];
+  
+  if (artists.results) {
+    artists.results.forEach(r => results.push({ id: r.id, name: r.name, type: r.type }));
+  }
+  if (albums.results) {
+    albums.results.forEach(r => results.push({ id: r.id, name: r.title, type: r.type }));
+  }
+  if (eps.results) {
+    eps.results.forEach(r => results.push({ id: r.id, name: r.title, type: r.type }));
+  }
+  if (playlists.results) {
+    playlists.results.forEach(r => results.push({ id: r.id, name: r.name, type: r.type }));
+  }
+  
+  if (results.length === 0) {
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `🔍 No results found for "${query}"\n\nTry a different keyword.`
+        text: `🔍 No results found for "${query}"\n\nTry a different keyword.\n\nOr use /track [keyword] to search for tracks directly.`
       })
     });
     return;
   }
   
-  // Build response message
-  let responseText = `🔍 Search results for "${query}":\n\n`;
-  
-  results.results.forEach((track, index) => {
-    const number = index + 1;
-    const artistDisplay = track.artist_name || "Unknown Artist";
-    responseText += `${number}. 🎵 ${track.title} - ${artistDisplay}\n`;
+  // Build inline keyboard buttons
+  const buttons = [];
+  results.forEach((item) => {
+    let displayName = item.name;
+    let emoji = "";
+    if (item.type === "artist") emoji = "🎤";
+    if (item.type === "album") emoji = "💿";
+    if (item.type === "ep") emoji = "🎵";
+    if (item.type === "playlist") emoji = "📋";
+    
+    buttons.push([{ text: `${emoji} ${displayName} (${item.type})`, callback_data: `${item.type}_${item.id}` }]);
   });
   
-  responseText += `\nSend /play [number] to play a track (coming soon)`;
+  const keyboard = {
+    inline_keyboard: buttons
+  };
+  
+  const responseText = `🔍 Search results for "${query}":\n\nClick on an item to see details.`;
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText
+      text: responseText,
+      reply_markup: keyboard
     })
   });
 }
