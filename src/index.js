@@ -25,7 +25,9 @@ export default {
           if (!track) return await answerCallbackQuery(cb.id, "❌ Not found", true, env.BOT_TOKEN);
           await answerCallbackQuery(cb.id, "📥 Sending MP3...", false, env.BOT_TOKEN);
           
+          // NOTE: Audio files still use the files. subdomain as per your previous setup
           const audioUrl = `https://files.zedtopvibes.com/${encodeURIComponent(track.r2_key)}`;
+          
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendAudio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -56,10 +58,9 @@ export default {
         const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
         
         try {
-          // Attempt to send with photo
           await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
         } catch (e) {
-          // Fallback to text if the image fails
+          // Safety fallback if the photo fails
           await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
         }
 
