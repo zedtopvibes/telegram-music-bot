@@ -1,6 +1,6 @@
 import { sendMessage, sendPhoto, answerCallbackQuery } from './utils.js';
 import { searchTracks, formatTrackMessage } from './music.js';
-import { searchAlbum, getTracksForAlbum, formatAlbumUI } from './albums.js';
+import { searchArtist, getArtistTracks, formatArtistUI } from './artists.js';
 
 export default {
   async fetch(request, env) {
@@ -47,18 +47,16 @@ export default {
       const query = msg.text.trim();
       if (query.startsWith("/")) return new Response("OK");
 
-      // 1. Search for Album FIRST
-      const albumResult = await searchAlbum(env.DB, query);
+      // 1. Search for ARTIST
+      const artistResult = await searchArtist(env.DB, query);
 
-      if (albumResult) {
-        const tracks = await getTracksForAlbum(env.DB, albumResult.id);
-        const { text, keyboard } = formatAlbumUI(albumResult, tracks);
-        
-        // Send as clean text message
+      if (artistResult) {
+        const tracks = await getArtistTracks(env.DB, artistResult.id);
+        const { text, keyboard } = formatArtistUI(artistResult, tracks);
         await sendMessage(msg.chat.id, text, env.BOT_TOKEN, keyboard);
 
       } else {
-        // 2. Search for Tracks (Fallback)
+        // 2. Fallback to TRACK search
         const trackResults = await searchTracks(env.DB, query);
         
         if (trackResults.length > 0) {
@@ -67,11 +65,9 @@ export default {
           const keyboard = {
             inline_keyboard: [[{ text: "⬇️ Download MP3", callback_data: `dl_${track.id}` }]]
           };
-          // Tracks still use photo since that was stable
           await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
         } else {
-          // 3. No results
-          await sendMessage(msg.chat.id, `😔 No results found for "${query}".`, env.BOT_TOKEN);
+          await sendMessage(msg.chat.id, `😔 No artist or track found for "${query}".`, env.BOT_TOKEN);
         }
       }
 
