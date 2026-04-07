@@ -6,6 +6,7 @@ import { handleArtist } from "./commands/artist.js";
 import { handleAlbum } from "./commands/album.js";
 import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
+import { handleList } from "./commands/list.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
 const CDN_URL = "https://files.zedtopvibes.com";
@@ -71,6 +72,154 @@ async function handleUpdate(update, env) {
       return;
     }
     
+    // Handle Delete Message button
+    if (data === "delete_message") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId
+        })
+      }).catch(() => {});
+      
+      return;
+    }
+    
+    // Handle noop (do nothing)
+    if (data === "noop") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      return;
+    }
+    
+    // Handle Search button
+    if (data === "search") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "🔍 Send me a song name, artist, album, EP, or playlist name to search."
+        })
+      });
+      return;
+    }
+    
+    // Handle Help button
+    if (data === "help") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `❓ Help Guide
+
+Available Commands:
+/track [name] - Search for tracks
+/artist [name] - View artist profile
+/album [name] - View album
+/ep [name] - View EP
+/playlist [name] - View playlist
+
+Or simply type any artist or song name to search!
+
+Click buttons below to browse all content.
+
+Need more help? Contact @ZedTopVibes`
+        })
+      });
+      return;
+    }
+    
+    // Handle List buttons
+    if (data === "list_artists") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      await handleList(chatId, "artists", 1, env);
+      return;
+    }
+    
+    if (data === "list_albums") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      await handleList(chatId, "albums", 1, env);
+      return;
+    }
+    
+    if (data === "list_eps") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      await handleList(chatId, "eps", 1, env);
+      return;
+    }
+    
+    if (data === "list_playlists") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      await handleList(chatId, "playlists", 1, env);
+      return;
+    }
+    
+    // Handle Pagination
+    if (data.startsWith("page_")) {
+      const parts = data.split("_");
+      const listType = parts[1];
+      const page = parseInt(parts[2]);
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      // Delete current message and send new page
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId
+        })
+      }).catch(() => {});
+      
+      await handleList(chatId, listType, page, env);
+      return;
+    }
+    
     // Handle artist button click
     if (data.startsWith("artist_")) {
       const artistId = data.replace("artist_", "");
@@ -127,6 +276,8 @@ async function handleUpdate(update, env) {
       } else {
         responseText += `No tracks found.`;
       }
+      
+      buttons.push([{ text: "❌", callback_data: "delete_message" }]);
       
       const keyboard = { inline_keyboard: buttons };
       
@@ -201,6 +352,8 @@ async function handleUpdate(update, env) {
         responseText += `No tracks found.`;
       }
       
+      buttons.push([{ text: "❌", callback_data: "delete_message" }]);
+      
       const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -274,6 +427,8 @@ async function handleUpdate(update, env) {
         responseText += `No tracks found.`;
       }
       
+      buttons.push([{ text: "❌", callback_data: "delete_message" }]);
+      
       const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -343,6 +498,8 @@ async function handleUpdate(update, env) {
       } else {
         responseText += `No tracks found.`;
       }
+      
+      buttons.push([{ text: "❌", callback_data: "delete_message" }]);
       
       const keyboard = { inline_keyboard: buttons };
       
@@ -441,7 +598,6 @@ async function handleUpdate(update, env) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Delete status message
       await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -451,7 +607,6 @@ async function handleUpdate(update, env) {
         })
       }).catch(() => {});
       
-      // Send completion message
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -547,7 +702,6 @@ async function handleUpdate(update, env) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Delete status message
       await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -557,7 +711,6 @@ async function handleUpdate(update, env) {
         })
       }).catch(() => {});
       
-      // Send completion message
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -653,7 +806,6 @@ async function handleUpdate(update, env) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Delete status message
       await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -663,7 +815,6 @@ async function handleUpdate(update, env) {
         })
       }).catch(() => {});
       
-      // Send completion message
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
