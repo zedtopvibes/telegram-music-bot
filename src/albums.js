@@ -1,21 +1,11 @@
 // src/albums.js
 
-const IMAGE_BASE = "https://zedtopvibes.com";
-
-function getAlbumImage(album) {
-    // Logic handles /images/albums/... paths from your D1 table
-    if (album.cover_url && album.cover_url !== 'null' && album.cover_url !== '') {
-        if (album.cover_url.startsWith('/')) {
-            return `${IMAGE_BASE}${album.cover_url}`;
-        }
-        return album.cover_url.startsWith('http') ? album.cover_url : `${IMAGE_BASE}/${album.cover_url}`;
-    }
-    // Fallback if cover_url is NULL in D1
-    return 'https://zedtopvibes.com/apple-touch-icon.png';
-}
-
+/**
+ * Finds an album and its artist
+ */
 export async function searchAlbum(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
+  
   const sql = `
     SELECT a.*, ar.name AS artist_name
     FROM albums a
@@ -25,6 +15,7 @@ export async function searchAlbum(db, query) {
       AND a.status = 'published'
     LIMIT 1
   `;
+
   try {
     return await db.prepare(sql).bind(searchTerm).first();
   } catch (err) {
@@ -33,6 +24,9 @@ export async function searchAlbum(db, query) {
   }
 }
 
+/**
+ * Fetches tracks using the 'album_tracks' pivot table
+ */
 export async function getTracksForAlbum(db, albumId) {
   const sql = `
     SELECT t.id, t.title, at.track_number
@@ -43,6 +37,7 @@ export async function getTracksForAlbum(db, albumId) {
       AND t.status = 'published'
     ORDER BY at.track_number ASC
   `;
+
   try {
     const { results } = await db.prepare(sql).bind(albumId).all();
     return results || [];
@@ -52,23 +47,24 @@ export async function getTracksForAlbum(db, albumId) {
   }
 }
 
+/**
+ * Text-only UI for Albums
+ */
 export function formatAlbumUI(album, tracks) {
-  const artwork = getAlbumImage(album);
-  
-  let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
-  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
-  caption += `<b>Tracklist:</b>\n`;
+  let text = `💿 <b>ALBUM: ${album.title}</b>\n`;
+  text += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
+  text += `<b>Tracklist:</b>\n`;
 
   const keyboard = { inline_keyboard: [] };
   
   tracks.forEach((track, index) => {
     const num = track.track_number || (index + 1);
-    caption += `${num}. ${track.title}\n`;
+    text += `${num}. ${track.title}\n`;
     keyboard.inline_keyboard.push([{
       text: `🎵 Download: ${track.title}`,
       callback_data: `dl_${track.id}`
     }]);
   });
 
-  return { caption, artwork, keyboard };
+  return { text, keyboard };
 }
