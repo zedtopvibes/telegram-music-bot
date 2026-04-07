@@ -1,7 +1,7 @@
 import { sendMessage, sendPhoto, answerCallbackQuery } from './utils.js';
 import { searchTracks, formatTrackMessage } from './music.js';
 import { searchAlbum, getTracksForAlbum, formatAlbumUI } from './albums.js';
-
+ 
 export default {
   async fetch(request, env) {
     if (request.method !== "POST") return new Response("OK");
