@@ -2,7 +2,7 @@ export async function handleSearch(chatId, query, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
-  // Search tracks by title, join with artists to get primary artist
+  // Search tracks by title or artist name (any artist, not just primary)
   const searchQuery = `
     SELECT 
       t.id,
@@ -11,17 +11,20 @@ export async function handleSearch(chatId, query, env) {
       a.name as artist_name,
       a.slug as artist_slug
     FROM tracks t
-    LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+    LEFT JOIN track_artists ta ON t.id = ta.track_id
     LEFT JOIN artists a ON ta.artist_id = a.id
-    WHERE t.title LIKE ? 
+    WHERE (t.title LIKE ? OR a.name LIKE ?)
       AND t.deleted_at IS NULL
       AND t.status = 'published'
+    GROUP BY t.id
     ORDER BY t.plays DESC
     LIMIT 10
   `;
   
   const searchTerm = `%${query}%`;
-  const results = await env.DB.prepare(searchQuery).bind(searchTerm).all();
+  const results = await env.DB.prepare(searchQuery)
+    .bind(searchTerm, searchTerm)
+    .all();
   
   if (!results.results || results.results.length === 0) {
     await fetch(`${TELEGRAM_API}/sendMessage`, {
