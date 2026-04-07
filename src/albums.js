@@ -1,7 +1,7 @@
 // src/albums.js
 
 /**
- * Searches the 'albums' table and joins with 'artists'
+ * Searches for a published album using the exact same logic as your API.
  */
 export async function searchAlbum(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
@@ -10,13 +10,16 @@ export async function searchAlbum(db, query) {
     SELECT 
       a.id, 
       a.title, 
-      a.artwork_url, 
+      a.cover_url, -- Matches your API's 'cover_url'
       a.release_date,
       a.slug,
-      art.name AS artist_name
+      ar.name AS artist_name
     FROM albums a
-    LEFT JOIN artists art ON a.artist_id = art.id
-    WHERE (LOWER(a.title) LIKE ?1 OR LOWER(art.name) LIKE ?1)
+    LEFT JOIN artists ar ON a.artist_id = ar.id
+    WHERE (LOWER(a.title) LIKE ?1 OR LOWER(ar.name) LIKE ?1)
+      AND a.deleted_at IS NULL
+      AND a.status = 'published'
+    ORDER BY a.created_at DESC
     LIMIT 1
   `;
 
@@ -30,13 +33,16 @@ export async function searchAlbum(db, query) {
 }
 
 /**
- * Fetches all tracks linked to the album via release_id
+ * Fetches published tracks for an album.
  */
 export async function getTracksForAlbum(db, albumId) {
   const sql = `
     SELECT id, title, duration, track_number
     FROM tracks
-    WHERE release_id = ? AND release_type = 'album'
+    WHERE release_id = ? 
+      AND release_type = 'album'
+      AND status = 'published'
+      AND deleted_at IS NULL
     ORDER BY track_number ASC, title ASC
   `;
 
@@ -50,21 +56,26 @@ export async function getTracksForAlbum(db, albumId) {
 }
 
 /**
- * Formats the Album View UI with a Tracklist and buttons
+ * Formats the Album View for Telegram.
  */
 export function formatAlbumUI(album, tracks) {
   const siteUrl = "https://zedtopvibes.com";
+  
+  // Use cover_url from your API, fallback to default icon
   let artwork = `${siteUrl}/apple-touch-icon.png`;
-
-  if (album.artwork_url) {
-    const cleanPath = album.artwork_url.startsWith('/') ? album.artwork_url : `/${album.artwork_url}`;
+  if (album.cover_url) {
+    const cleanPath = album.cover_url.startsWith('/') ? album.cover_url : `/${album.cover_url}`;
     artwork = `${siteUrl}${cleanPath}`;
   }
 
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
-  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown"}\n`;
-  caption += `📅 <b>Year:</b> ${album.release_date ? album.release_date.substring(0, 4) : "N/A"}\n\n`;
-  caption += `<b>Tracklist:</b>\n`;
+  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n`;
+  
+  if (album.release_date) {
+    caption += `📅 <b>Released:</b> ${new Date(album.release_date).getFullYear()}\n`;
+  }
+  
+  caption += `\n<b>Tracklist (${tracks.length} songs):</b>\n`;
 
   const keyboard = { inline_keyboard: [] };
   
@@ -72,16 +83,16 @@ export function formatAlbumUI(album, tracks) {
     const trackNum = track.track_number || (index + 1);
     caption += `${trackNum}. ${track.title}\n`;
 
-    // Reuses the 'dl_' callback from our tracks logic
+    // Reuses the 'dl_' callback from index.js
     keyboard.inline_keyboard.push([{
-      text: `🎵 Download: ${track.title}`,
+      text: `🎵 ${track.title}`,
       callback_data: `dl_${track.id}`
     }]);
   });
 
-  // Optional: Add "View on Website" button
+  // Direct link to the website album page
   keyboard.inline_keyboard.push([{
-    text: "🌐 View on ZedTopVibes",
+    text: "🌐 View Album Online",
     url: `${siteUrl}/album/${album.slug}`
   }]);
 
