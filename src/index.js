@@ -358,7 +358,7 @@ async function handleUpdate(update, env) {
       return;
     }
     
-    // Handle Get All button for Album with progress
+    // Handle Get All button for Album
     if (data.startsWith("getall_album_")) {
       const albumId = data.replace("getall_album_", "");
       
@@ -405,7 +405,7 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📀 Downloading album "${albumTitle}": 0/${totalTracks} tracks sent...`
+          text: `📀 Sending album "${albumTitle}": 0/${totalTracks}`
         })
       });
       const statusData = await statusMsg.json();
@@ -424,7 +424,7 @@ async function handleUpdate(update, env) {
             audio: audioUrl,
             title: track.title,
             performer: artistName,
-            caption: `🎵 ${track.title}\n🎤 ${artistName}\n\n📀 ${i+1}/${totalTracks} from "${albumTitle}"`
+            caption: `🎵 ${track.title}\n🎤 ${artistName}`
           })
         });
         
@@ -434,39 +434,37 @@ async function handleUpdate(update, env) {
           body: JSON.stringify({
             chat_id: chatId,
             message_id: statusMessageId,
-            text: `📀 Downloading album "${albumTitle}": ${i+1}/${totalTracks} tracks sent...`
+            text: `📀 Sending album "${albumTitle}": ${i+1}/${totalTracks}`
           })
         });
         
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Cool completion message with auto-delete
-      await fetch(`${TELEGRAM_API}/editMessageText`, {
+      // Delete status message
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          message_id: statusMessageId,
-          text: `✨ Done! ✨\n\n🎉 All ${totalTracks} tracks from "${albumTitle}" have been delivered!\n\n🎧 Enjoy the music! 🎧`
+          message_id: statusMessageId
+        })
+      }).catch(() => {});
+      
+      // Send completion message
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `✅ Done! All ${totalTracks} tracks from "${albumTitle}" sent.`
         })
       });
-      
-      setTimeout(async () => {
-        await fetch(`${TELEGRAM_API}/deleteMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: statusMessageId
-          })
-        }).catch(() => {});
-      }, 5000);
       
       return;
     }
     
-    // Handle Get All button for EP with progress
+    // Handle Get All button for EP
     if (data.startsWith("getall_ep_")) {
       const epId = data.replace("getall_ep_", "");
       
@@ -513,7 +511,7 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🎵 Downloading EP "${epTitle}": 0/${totalTracks} tracks sent...`
+          text: `🎵 Sending EP "${epTitle}": 0/${totalTracks}`
         })
       });
       const statusData = await statusMsg.json();
@@ -532,7 +530,7 @@ async function handleUpdate(update, env) {
             audio: audioUrl,
             title: track.title,
             performer: artistName,
-            caption: `🎵 ${track.title}\n🎤 ${artistName}\n\n🎵 ${i+1}/${totalTracks} from "${epTitle}"`
+            caption: `🎵 ${track.title}\n🎤 ${artistName}`
           })
         });
         
@@ -542,39 +540,37 @@ async function handleUpdate(update, env) {
           body: JSON.stringify({
             chat_id: chatId,
             message_id: statusMessageId,
-            text: `🎵 Downloading EP "${epTitle}": ${i+1}/${totalTracks} tracks sent...`
+            text: `🎵 Sending EP "${epTitle}": ${i+1}/${totalTracks}`
           })
         });
         
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Cool completion message with auto-delete
-      await fetch(`${TELEGRAM_API}/editMessageText`, {
+      // Delete status message
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          message_id: statusMessageId,
-          text: `✨ Done! ✨\n\n🎉 All ${totalTracks} tracks from "${epTitle}" have been delivered!\n\n🎧 Enjoy the music! 🎧`
+          message_id: statusMessageId
+        })
+      }).catch(() => {});
+      
+      // Send completion message
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `✅ Done! All ${totalTracks} tracks from "${epTitle}" sent.`
         })
       });
-      
-      setTimeout(async () => {
-        await fetch(`${TELEGRAM_API}/deleteMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: statusMessageId
-          })
-        }).catch(() => {});
-      }, 5000);
       
       return;
     }
     
-    // Handle Get All button for Playlist with progress
+    // Handle Get All button for Playlist
     if (data.startsWith("getall_playlist_")) {
       const playlistId = data.replace("getall_playlist_", "");
       
@@ -621,7 +617,7 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📋 Downloading playlist "${playlistName}": 0/${totalTracks} tracks sent...`
+          text: `📋 Sending playlist "${playlistName}": 0/${totalTracks}`
         })
       });
       const statusData = await statusMsg.json();
@@ -640,7 +636,7 @@ async function handleUpdate(update, env) {
             audio: audioUrl,
             title: track.title,
             performer: artistName,
-            caption: `🎵 ${track.title}\n🎤 ${artistName}\n\n📋 ${i+1}/${totalTracks} from "${playlistName}"`
+            caption: `🎵 ${track.title}\n🎤 ${artistName}`
           })
         });
         
@@ -650,34 +646,32 @@ async function handleUpdate(update, env) {
           body: JSON.stringify({
             chat_id: chatId,
             message_id: statusMessageId,
-            text: `📋 Downloading playlist "${playlistName}": ${i+1}/${totalTracks} tracks sent...`
+            text: `📋 Sending playlist "${playlistName}": ${i+1}/${totalTracks}`
           })
         });
         
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Cool completion message with auto-delete
-      await fetch(`${TELEGRAM_API}/editMessageText`, {
+      // Delete status message
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          message_id: statusMessageId,
-          text: `✨ Done! ✨\n\n🎉 All ${totalTracks} tracks from "${playlistName}" have been delivered!\n\n🎧 Enjoy the music! 🎧`
+          message_id: statusMessageId
+        })
+      }).catch(() => {});
+      
+      // Send completion message
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `✅ Done! All ${totalTracks} tracks from "${playlistName}" sent.`
         })
       });
-      
-      setTimeout(async () => {
-        await fetch(`${TELEGRAM_API}/deleteMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: statusMessageId
-          })
-        }).catch(() => {});
-      }, 5000);
       
       return;
     }
