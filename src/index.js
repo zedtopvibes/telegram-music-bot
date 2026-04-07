@@ -9,11 +9,11 @@ export default {
     try {
       const payload = await request.json();
 
+      // --- CALLBACK HANDLER ---
       if (payload.callback_query) {
         const cb = payload.callback_query;
         if (cb.data.startsWith("dl_")) {
           const trackId = cb.data.replace("dl_", "");
-          
           const track = await env.DB.prepare(`
             SELECT t.title, t.r2_key, a.name as artist 
             FROM tracks t 
@@ -23,11 +23,9 @@ export default {
           `).bind(trackId).first();
 
           if (!track) return await answerCallbackQuery(cb.id, "❌ Not found", true, env.BOT_TOKEN);
-          
           await answerCallbackQuery(cb.id, "📥 Sending MP3...", false, env.BOT_TOKEN);
           
           const audioUrl = `https://files.zedtopvibes.com/${encodeURIComponent(track.r2_key)}`;
-
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendAudio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -42,10 +40,10 @@ export default {
         return new Response("OK");
       }
 
+      // --- SEARCH HANDLER ---
       const msg = payload.message;
       if (!msg || !msg.text) return new Response("OK");
       const query = msg.text.trim();
-
       if (query.startsWith("/")) return new Response("OK");
 
       const [trackResults, albumResult] = await Promise.all([
@@ -54,14 +52,18 @@ export default {
       ]);
 
       if (albumResult) {
-        // ALBUM FOUND: Send as TEXT only for stability
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
-        const { caption, keyboard } = formatAlbumUI(albumResult, tracks);
+        const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
         
-        await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
+        try {
+          // Attempt to send with photo
+          await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
+        } catch (e) {
+          // Fallback to text if the image fails
+          await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
+        }
 
       } else if (trackResults.length > 0) {
-        // TRACK FOUND: Continue using Image (this part worked)
         const track = trackResults[0];
         const { caption, artwork } = formatTrackMessage(track);
         const keyboard = {
