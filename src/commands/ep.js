@@ -10,8 +10,7 @@ export async function handleEp(chatId, epName, env) {
       description,
       release_date,
       genre,
-      label,
-      cover_url
+      label
     FROM eps
     WHERE title LIKE ?
       AND deleted_at IS NULL
@@ -39,7 +38,6 @@ export async function handleEp(chatId, epName, env) {
     SELECT 
       t.id,
       t.title,
-      t.duration,
       et.track_number
     FROM ep_tracks et
     LEFT JOIN tracks t ON et.track_id = t.id
@@ -72,23 +70,30 @@ export async function handleEp(chatId, epName, env) {
   
   responseText += `\n🎵 Tracklist:\n`;
   
+  // Build inline keyboard buttons for tracks
+  const buttons = [];
+  
   if (tracksResult.results && tracksResult.results.length > 0) {
     tracksResult.results.forEach((track, index) => {
       const number = index + 1;
       responseText += `${number}. ${track.title}\n`;
+      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `play_${track.id}` }]);
     });
   } else {
     responseText += `No tracks found.`;
   }
   
-  responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+  const keyboard = {
+    inline_keyboard: buttons
+  };
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText
+      text: responseText,
+      reply_markup: keyboard
     })
   });
 }
