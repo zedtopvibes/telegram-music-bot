@@ -196,7 +196,6 @@ async function handleUpdate(update, env) {
           responseText += `${number}. ${track.title}\n`;
           buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
-        // Add Get All button
         buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
       } else {
         responseText += `No tracks found.`;
@@ -270,7 +269,6 @@ async function handleUpdate(update, env) {
           responseText += `${number}. ${track.title}\n`;
           buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
-        // Add Get All button
         buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
       } else {
         responseText += `No tracks found.`;
@@ -341,7 +339,6 @@ async function handleUpdate(update, env) {
           responseText += `${number}. ${track.title}\n`;
           buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
-        // Add Get All button
         buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
       } else {
         responseText += `No tracks found.`;
@@ -361,7 +358,7 @@ async function handleUpdate(update, env) {
       return;
     }
     
-    // Handle Get All button for Album
+    // Handle Get All button for Album with progress
     if (data.startsWith("getall_album_")) {
       const albumId = data.replace("getall_album_", "");
       
@@ -370,6 +367,12 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
+      
+      // Get album title and tracks
+      const albumQuery = `
+        SELECT title FROM albums WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const album = await env.DB.prepare(albumQuery).bind(albumId).first();
       
       const tracksQuery = `
         SELECT t.id, t.title, t.filename, a.name as artist_name
@@ -395,16 +398,24 @@ async function handleUpdate(update, env) {
         return;
       }
       
-      await fetch(`${TELEGRAM_API}/sendMessage`, {
+      const totalTracks = tracks.results.length;
+      const albumTitle = album ? album.title : "Album";
+      
+      // Send initial status message
+      const statusMsg = await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📀 Sending ${tracks.results.length} tracks from this album...`
+          text: `📀 Downloading album "${albumTitle}": 0/${totalTracks} tracks sent...`
         })
       });
+      const statusData = await statusMsg.json();
+      const statusMessageId = statusData.result.message_id;
       
-      for (const track of tracks.results) {
+      // Send each track with progress update
+      for (let i = 0; i < totalTracks; i++) {
+        const track = tracks.results[i];
         const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
         const artistName = track.artist_name || "Unknown Artist";
         
@@ -416,16 +427,40 @@ async function handleUpdate(update, env) {
             audio: audioUrl,
             title: track.title,
             performer: artistName,
-            caption: `🎵 ${track.title}\n🎤 ${artistName}`
+            caption: `🎵 ${track.title}\n🎤 ${artistName}\n\n📀 ${i+1}/${totalTracks} from "${albumTitle}"`
           })
         });
         
+        // Update progress message
+        await fetch(`${TELEGRAM_API}/editMessageText`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: statusMessageId,
+            text: `📀 Downloading album "${albumTitle}": ${i+1}/${totalTracks} tracks sent...`
+          })
+        });
+        
+        // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+      
+      // Final completion message
+      await fetch(`${TELEGRAM_API}/editMessageText`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: statusMessageId,
+          text: `✅ Complete! ${totalTracks}/${totalTracks} tracks sent from "${albumTitle}"`
+        })
+      });
+      
       return;
     }
     
-    // Handle Get All button for EP
+    // Handle Get All button for EP with progress
     if (data.startsWith("getall_ep_")) {
       const epId = data.replace("getall_ep_", "");
       
@@ -434,6 +469,12 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
+      
+      // Get EP title and tracks
+      const epQuery = `
+        SELECT title FROM eps WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const ep = await env.DB.prepare(epQuery).bind(epId).first();
       
       const tracksQuery = `
         SELECT t.id, t.title, t.filename, a.name as artist_name
@@ -459,16 +500,24 @@ async function handleUpdate(update, env) {
         return;
       }
       
-      await fetch(`${TELEGRAM_API}/sendMessage`, {
+      const totalTracks = tracks.results.length;
+      const epTitle = ep ? ep.title : "EP";
+      
+      // Send initial status message
+      const statusMsg = await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🎵 Sending ${tracks.results.length} tracks from this EP...`
+          text: `🎵 Downloading EP "${epTitle}": 0/${totalTracks} tracks sent...`
         })
       });
+      const statusData = await statusMsg.json();
+      const statusMessageId = statusData.result.message_id;
       
-      for (const track of tracks.results) {
+      // Send each track with progress update
+      for (let i = 0; i < totalTracks; i++) {
+        const track = tracks.results[i];
         const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
         const artistName = track.artist_name || "Unknown Artist";
         
@@ -480,16 +529,39 @@ async function handleUpdate(update, env) {
             audio: audioUrl,
             title: track.title,
             performer: artistName,
-            caption: `🎵 ${track.title}\n🎤 ${artistName}`
+            caption: `🎵 ${track.title}\n🎤 ${artistName}\n\n🎵 ${i+1}/${totalTracks} from "${epTitle}"`
+          })
+        });
+        
+        // Update progress message
+        await fetch(`${TELEGRAM_API}/editMessageText`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: statusMessageId,
+            text: `🎵 Downloading EP "${epTitle}": ${i+1}/${totalTracks} tracks sent...`
           })
         });
         
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+      
+      // Final completion message
+      await fetch(`${TELEGRAM_API}/editMessageText`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: statusMessageId,
+          text: `✅ Complete! ${totalTracks}/${totalTracks} tracks sent from "${epTitle}"`
+        })
+      });
+      
       return;
     }
     
-    // Handle Get All button for Playlist
+    // Handle Get All button for Playlist with progress
     if (data.startsWith("getall_playlist_")) {
       const playlistId = data.replace("getall_playlist_", "");
       
@@ -498,6 +570,12 @@ async function handleUpdate(update, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
+      
+      // Get playlist title and tracks
+      const playlistQuery = `
+        SELECT name FROM playlists WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+      `;
+      const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
       
       const tracksQuery = `
         SELECT t.id, t.title, t.filename, a.name as artist_name
@@ -523,16 +601,24 @@ async function handleUpdate(update, env) {
         return;
       }
       
-      await fetch(`${TELEGRAM_API}/sendMessage`, {
+      const totalTracks = tracks.results.length;
+      const playlistName = playlist ? playlist.name : "Playlist";
+      
+      // Send initial status message
+      const statusMsg = await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📋 Sending ${tracks.results.length} tracks from this playlist...`
+          text: `📋 Downloading playlist "${playlistName}": 0/${totalTracks} tracks sent...`
         })
       });
+      const statusData = await statusMsg.json();
+      const statusMessageId = statusData.result.message_id;
       
-      for (const track of tracks.results) {
+      // Send each track with progress update
+      for (let i = 0; i < totalTracks; i++) {
+        const track = tracks.results[i];
         const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
         const artistName = track.artist_name || "Unknown Artist";
         
@@ -544,12 +630,35 @@ async function handleUpdate(update, env) {
             audio: audioUrl,
             title: track.title,
             performer: artistName,
-            caption: `🎵 ${track.title}\n🎤 ${artistName}`
+            caption: `🎵 ${track.title}\n🎤 ${artistName}\n\n📋 ${i+1}/${totalTracks} from "${playlistName}"`
+          })
+        });
+        
+        // Update progress message
+        await fetch(`${TELEGRAM_API}/editMessageText`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: statusMessageId,
+            text: `📋 Downloading playlist "${playlistName}": ${i+1}/${totalTracks} tracks sent...`
           })
         });
         
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+      
+      // Final completion message
+      await fetch(`${TELEGRAM_API}/editMessageText`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: statusMessageId,
+          text: `✅ Complete! ${totalTracks}/${totalTracks} tracks sent from "${playlistName}"`
+        })
+      });
+      
       return;
     }
     
