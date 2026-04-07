@@ -36,16 +36,14 @@ export function formatTrackMessage(track) {
   const artist = track.artist_name || "Unknown Artist";
   const legendTag = track.is_zambian_legend ? " 🇿🇲 [Legend]" : "";
   
-  // Format Duration (MM:SS)
   const mins = Math.floor((track.duration || 0) / 60);
   const secs = ((track.duration || 0) % 60).toString().padStart(2, '0');
 
-  // Logic based on your JSON: artwork_url is already "/api/cover/..."
+  // Logic: artwork_url in DB is "/api/cover/..."
   const siteUrl = "https://zedtopvibes.com";
-  let artwork = `${siteUrl}/apple-touch-icon.png`; // Fallback
+  let artwork = `${siteUrl}/apple-touch-icon.png`; 
 
   if (track.artwork_url) {
-    // Ensure the path starts with a slash
     const cleanPath = track.artwork_url.startsWith('/') ? track.artwork_url : `/${track.artwork_url}`;
     artwork = `${siteUrl}${cleanPath}`;
   }
