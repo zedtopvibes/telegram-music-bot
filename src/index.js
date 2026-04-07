@@ -8,7 +8,7 @@ import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
-export default { 
+export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST" && new URL(request.url).pathname === "/webhook") {
       try {
@@ -112,24 +112,31 @@ async function handleUpdate(update, env) {
       let responseText = `🎤 ${artist.name}\n\n`;
       if (artist.bio) responseText += `${artist.bio}\n\n`;
       if (artist.country) responseText += `📍 Country: ${artist.country}\n\n`;
-      responseText += `🎵 Tracks:\n`;
+      responseText += `🎵 Tracks:\n\n`;
+      
+      const buttons = [];
       
       if (tracks.results && tracks.results.length > 0) {
         tracks.results.forEach((track, index) => {
-          responseText += `${index + 1}. ${track.title}\n`;
+          const number = index + 1;
+          responseText += `${number}. ${track.title}\n`;
+          buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
       } else {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      responseText += `\nClick a track button to play (coming soon)`;
+      
+      const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: responseText
+          text: responseText,
+          reply_markup: keyboard
         })
       });
       return;
@@ -179,24 +186,31 @@ async function handleUpdate(update, env) {
       if (album.release_date) responseText += `📅 Release: ${album.release_date}\n`;
       if (album.genre) responseText += `🎸 Genre: ${album.genre}\n`;
       if (album.label) responseText += `🏷️ Label: ${album.label}\n\n`;
-      responseText += `🎵 Tracklist:\n`;
+      responseText += `🎵 Tracklist:\n\n`;
+      
+      const buttons = [];
       
       if (tracks.results && tracks.results.length > 0) {
         tracks.results.forEach((track, index) => {
-          responseText += `${index + 1}. ${track.title}\n`;
+          const number = index + 1;
+          responseText += `${number}. ${track.title}\n`;
+          buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
       } else {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      responseText += `\nClick a track button to play (coming soon)`;
+      
+      const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: responseText
+          text: responseText,
+          reply_markup: keyboard
         })
       });
       return;
@@ -246,24 +260,31 @@ async function handleUpdate(update, env) {
       if (ep.release_date) responseText += `📅 Release: ${ep.release_date}\n`;
       if (ep.genre) responseText += `🎸 Genre: ${ep.genre}\n`;
       if (ep.label) responseText += `🏷️ Label: ${ep.label}\n\n`;
-      responseText += `🎵 Tracklist:\n`;
+      responseText += `🎵 Tracklist:\n\n`;
+      
+      const buttons = [];
       
       if (tracks.results && tracks.results.length > 0) {
         tracks.results.forEach((track, index) => {
-          responseText += `${index + 1}. ${track.title}\n`;
+          const number = index + 1;
+          responseText += `${number}. ${track.title}\n`;
+          buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
       } else {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      responseText += `\nClick a track button to play (coming soon)`;
+      
+      const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: responseText
+          text: responseText,
+          reply_markup: keyboard
         })
       });
       return;
@@ -310,24 +331,47 @@ async function handleUpdate(update, env) {
       
       let responseText = `📋 PLAYLIST: ${playlist.name}\n\n`;
       if (playlist.description) responseText += `${playlist.description}\n\n`;
-      responseText += `🎵 Tracks:\n`;
+      responseText += `🎵 Tracks:\n\n`;
+      
+      const buttons = [];
       
       if (tracks.results && tracks.results.length > 0) {
         tracks.results.forEach((track, index) => {
-          responseText += `${index + 1}. ${track.title}\n`;
+          const number = index + 1;
+          responseText += `${number}. ${track.title}\n`;
+          buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
         });
       } else {
         responseText += `No tracks found.`;
       }
       
-      responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+      responseText += `\nClick a track button to play (coming soon)`;
+      
+      const keyboard = { inline_keyboard: buttons };
       
       await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: responseText
+          text: responseText,
+          reply_markup: keyboard
+        })
+      });
+      return;
+    }
+    
+    // Handle track button click (placeholder - Phase 3)
+    if (data.startsWith("track_")) {
+      const trackId = data.replace("track_", "");
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          callback_query_id: update.callback_query.id,
+          text: "🎵 Play feature coming soon! Phase 3 will add audio streaming.",
+          show_alert: true
         })
       });
       return;
@@ -464,4 +508,4 @@ async function handleUpdate(update, env) {
       });
     }
   }
-} 
+}
