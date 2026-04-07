@@ -8,6 +8,7 @@ import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { handleList } from "./commands/list.js";
 import { listYears, showYearContent } from "./commands/year.js";
+import { showNewReleases } from "./commands/newreleases.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
 const CDN_URL = "https://files.zedtopvibes.com";
@@ -151,6 +152,40 @@ Click buttons below to browse all content.
 Need more help? Contact @ZedTopVibes`
         })
       });
+      return;
+    }
+    
+    // Handle New Releases button
+    if (data === "new_releases") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      await showNewReleases(chatId, 1, env);
+      return;
+    }
+    
+    // Handle New Releases pagination
+    if (data.startsWith("page_new_")) {
+      const page = parseInt(data.replace("page_new_", ""));
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId
+        })
+      }).catch(() => {});
+      
+      await showNewReleases(chatId, page, env);
       return;
     }
     
