@@ -9,11 +9,13 @@ export default {
     try {
       const payload = await request.json();
 
-      // --- 1. DOWNLOAD HANDLER (Same as before) ---
+      // --- CALLBACK HANDLER (Downloads) ---
       if (payload.callback_query) {
         const cb = payload.callback_query;
         if (cb.data.startsWith("dl_")) {
           const trackId = cb.data.replace("dl_", "");
+          
+          // Get track info for download
           const track = await env.DB.prepare(`
             SELECT t.title, t.r2_key, a.name as artist 
             FROM tracks t 
@@ -22,53 +24,56 @@ export default {
             WHERE t.id = ? LIMIT 1
           `).bind(trackId).first();
 
-          if (!track) return await answerCallbackQuery(cb.id, "❌ Error", true, env.BOT_TOKEN);
+          if (!track) return await answerCallbackQuery(cb.id, "❌ Not found", true, env.BOT_TOKEN);
           
-          await answerCallbackQuery(cb.id, "📥 Sending...", false, env.BOT_TOKEN);
-          const url = `https://files.zedtopvibes.com/${encodeURIComponent(track.r2_key)}`;
+          await answerCallbackQuery(cb.id, "📥 Sending MP3...", false, env.BOT_TOKEN);
+          
+          const audioUrl = `https://files.zedtopvibes.com/${encodeURIComponent(track.r2_key)}`;
 
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendAudio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: cb.message.chat.id,
-              audio: url,
+              audio: audioUrl,
               title: track.title,
-              performer: track.artist
+              performer: track.artist || "ZedTopVibes"
             })
           });
         }
         return new Response("OK");
       }
 
-      // --- 2. SEARCH HANDLER ---
+      // --- MESSAGE HANDLER (Search) ---
       const msg = payload.message;
       if (!msg || !msg.text) return new Response("OK");
       const query = msg.text.trim();
 
-      // Parallel Search
+      if (query.startsWith("/")) return new Response("OK");
+
+      // Parallel search for speed
       const [trackResults, albumResult] = await Promise.all([
         searchTracks(env.DB, query),
         searchAlbum(env.DB, query)
       ]);
 
-      // PRIORITY LOGIC
       if (albumResult) {
-        // ALBUMS = TEXT ONLY (Clean list)
+        // ALBUM FOUND: Show as clean Text List
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
         const { caption, keyboard } = formatAlbumUI(albumResult, tracks);
         await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
-      } 
-      else if (trackResults.length > 0) {
-        // TRACKS = WITH IMAGES 🖼️
+
+      } else if (trackResults.length > 0) {
+        // TRACK FOUND: Show with Image 🖼️
         const track = trackResults[0];
         const { caption, artwork } = formatTrackMessage(track);
-        const keyboard = { inline_keyboard: [[{ text: "⬇️ Download MP3", callback_data: `dl_${track.id}` }]] };
-        
+        const keyboard = {
+          inline_keyboard: [[{ text: "⬇️ Download MP3", callback_data: `dl_${track.id}` }]]
+        };
         await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
-      } 
-      else {
-        await sendMessage(msg.chat.id, `😔 No results for "${query}".`, env.BOT_TOKEN);
+
+      } else {
+        await sendMessage(msg.chat.id, `😔 No results found for "${query}".`, env.BOT_TOKEN);
       }
 
     } catch (err) {
