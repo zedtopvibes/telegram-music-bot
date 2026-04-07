@@ -1,49 +1,69 @@
 // src/albums.js
 
+/**
+ * Finds an album and its artist
+ */
 export async function searchAlbum(db, query) {
-  const words = query.trim().split(/\s+/);
-  const firstWord = `%${words[0]}%`;
-  const fullSearch = `%${query}%`;
-
+  const searchTerm = `%${query.toLowerCase()}%`;
+  
   const sql = `
     SELECT a.*, ar.name AS artist_name
     FROM albums a
     LEFT JOIN artists ar ON a.artist_id = ar.id
-    WHERE (LOWER(a.title) LIKE ?1 OR LOWER(ar.name) LIKE ?1 OR LOWER(a.title) LIKE ?2)
+    WHERE (LOWER(a.title) LIKE ?1 OR LOWER(ar.name) LIKE ?1)
       AND a.deleted_at IS NULL
       AND a.status = 'published'
-    ORDER BY (LOWER(a.title) = LOWER(?3)) DESC, a.created_at DESC
     LIMIT 1
   `;
 
   try {
-    return await db.prepare(sql).bind(fullSearch, firstWord, query).first();
+    return await db.prepare(sql).bind(searchTerm).first();
   } catch (err) {
-    console.error("Album Search Error:", err);
+    console.error("D1 Album Search Error:", err);
     return null;
   }
 }
 
+/**
+ * Fetches tracks using the 'album_tracks' pivot table (Matches your API)
+ */
 export async function getTracksForAlbum(db, albumId) {
   const sql = `
-    SELECT id, title, r2_key FROM tracks 
-    WHERE release_id = ? AND release_type = 'album' 
-    AND status = 'published' AND deleted_at IS NULL
-    ORDER BY track_number ASC
+    SELECT t.id, t.title, t.r2_key, at.track_number
+    FROM tracks t
+    JOIN album_tracks at ON t.id = at.track_id
+    WHERE at.album_id = ? 
+      AND t.deleted_at IS NULL 
+      AND t.status = 'published'
+    ORDER BY at.track_number ASC
   `;
-  const { results } = await db.prepare(sql).bind(albumId).all();
-  return results || [];
+
+  try {
+    const { results } = await db.prepare(sql).bind(albumId).all();
+    return results || [];
+  } catch (err) {
+    console.error("D1 Album Tracks Error:", err);
+    return [];
+  }
 }
 
+/**
+ * Text-only UI for Albums (keeps tracklists clean)
+ */
 export function formatAlbumUI(album, tracks) {
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
-  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown"}\n\n`;
+  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
 
   const keyboard = { inline_keyboard: [] };
-  tracks.forEach((t, i) => {
-    caption += `${i + 1}. ${t.title}\n`;
-    keyboard.inline_keyboard.push([{ text: `🎵 ${t.title}`, callback_data: `dl_${t.id}` }]);
+  
+  tracks.forEach((track, index) => {
+    const num = track.track_number || (index + 1);
+    caption += `${num}. ${track.title}\n`;
+    keyboard.inline_keyboard.push([{
+      text: `🎵 Download: ${track.title}`,
+      callback_data: `dl_${track.id}`
+    }]);
   });
 
   return { caption, keyboard };
