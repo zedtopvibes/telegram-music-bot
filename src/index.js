@@ -1,7 +1,7 @@
 import { sendMessage, sendPhoto, answerCallbackQuery } from './utils.js';
 import { searchTracks, formatTrackMessage } from './music.js';
 import { searchAlbum, getTracksForAlbum, formatAlbumUI } from './albums.js';
- 
+
 export default {
   async fetch(request, env) {
     if (request.method !== "POST") return new Response("OK");
@@ -9,13 +9,12 @@ export default {
     try {
       const payload = await request.json();
 
-      // --- CALLBACK HANDLER (Downloads) ---
+      // --- 1. DOWNLOAD HANDLER ---
       if (payload.callback_query) {
         const cb = payload.callback_query;
         if (cb.data.startsWith("dl_")) {
           const trackId = cb.data.replace("dl_", "");
           
-          // Get track info for download
           const track = await env.DB.prepare(`
             SELECT t.title, t.r2_key, a.name as artist 
             FROM tracks t 
@@ -24,9 +23,9 @@ export default {
             WHERE t.id = ? LIMIT 1
           `).bind(trackId).first();
 
-          if (!track) return await answerCallbackQuery(cb.id, "❌ Not found", true, env.BOT_TOKEN);
+          if (!track) return await answerCallbackQuery(cb.id, "❌ File not found", true, env.BOT_TOKEN);
           
-          await answerCallbackQuery(cb.id, "📥 Sending MP3...", false, env.BOT_TOKEN);
+          await answerCallbackQuery(cb.id, "📥 Sending audio...", false, env.BOT_TOKEN);
           
           const audioUrl = `https://files.zedtopvibes.com/${encodeURIComponent(track.r2_key)}`;
 
@@ -44,27 +43,27 @@ export default {
         return new Response("OK");
       }
 
-      // --- MESSAGE HANDLER (Search) ---
+      // --- 2. SEARCH HANDLER ---
       const msg = payload.message;
       if (!msg || !msg.text) return new Response("OK");
       const query = msg.text.trim();
 
       if (query.startsWith("/")) return new Response("OK");
 
-      // Parallel search for speed
+      // Simultaneous Search
       const [trackResults, albumResult] = await Promise.all([
         searchTracks(env.DB, query),
         searchAlbum(env.DB, query)
       ]);
 
       if (albumResult) {
-        // ALBUM FOUND: Show as clean Text List
+        // ALBUM FOUND - SHOW PHOTO + TRACKLIST
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
-        const { caption, keyboard } = formatAlbumUI(albumResult, tracks);
-        await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
+        const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
+        await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
 
       } else if (trackResults.length > 0) {
-        // TRACK FOUND: Show with Image 🖼️
+        // TRACK FOUND - SHOW PHOTO 🖼️
         const track = trackResults[0];
         const { caption, artwork } = formatTrackMessage(track);
         const keyboard = {
@@ -77,7 +76,7 @@ export default {
       }
 
     } catch (err) {
-      console.error(err);
+      console.error("Worker Error:", err);
     }
     return new Response("OK");
   }
