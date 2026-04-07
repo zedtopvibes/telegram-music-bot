@@ -9,7 +9,7 @@ export default {
     try {
       const payload = await request.json();
 
-      // --- 1. CALLBACK HANDLER (Button Clicks) ---
+      // --- CALLBACK HANDLER (Downloads) ---
       if (payload.callback_query) {
         const cb = payload.callback_query;
         if (cb.data.startsWith("dl_")) {
@@ -26,7 +26,7 @@ export default {
           await answerCallbackQuery(cb.id, "📥 Sending MP3...", false, env.BOT_TOKEN);
           
           const audioUrl = `https://files.zedtopvibes.com/${encodeURIComponent(track.r2_key)}`;
-          
+
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendAudio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -41,29 +41,24 @@ export default {
         return new Response("OK");
       }
 
-      // --- 2. MESSAGE HANDLER (Search) ---
+      // --- MESSAGE HANDLER (Search) ---
       const msg = payload.message;
       if (!msg || !msg.text) return new Response("OK");
       const query = msg.text.trim();
       if (query.startsWith("/")) return new Response("OK");
 
-      // FIRST: Check for Album
+      // 1. Search for Album FIRST
       const albumResult = await searchAlbum(env.DB, query);
 
       if (albumResult) {
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
-        const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
+        const { text, keyboard } = formatAlbumUI(albumResult, tracks);
         
-        try {
-          // Send Album with Photo
-          await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
-        } catch (e) {
-          // Fallback to text if Image fails
-          await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
-        }
+        // Send as clean text message
+        await sendMessage(msg.chat.id, text, env.BOT_TOKEN, keyboard);
 
       } else {
-        // SECOND: Check for Tracks (Only if no album matches)
+        // 2. Search for Tracks (Fallback)
         const trackResults = await searchTracks(env.DB, query);
         
         if (trackResults.length > 0) {
@@ -72,9 +67,10 @@ export default {
           const keyboard = {
             inline_keyboard: [[{ text: "⬇️ Download MP3", callback_data: `dl_${track.id}` }]]
           };
+          // Tracks still use photo since that was stable
           await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
         } else {
-          // THIRD: No results found
+          // 3. No results
           await sendMessage(msg.chat.id, `😔 No results found for "${query}".`, env.BOT_TOKEN);
         }
       }
