@@ -1,6 +1,6 @@
 import { handleMessage } from "./handlers/messageHandler.js";
 import { handleCallbackQuery } from "./handlers/callbackQuery.js";
-
+ 
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST" && new URL(request.url).pathname === "/webhook") {
