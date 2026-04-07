@@ -9,13 +9,13 @@ export default {
     try {
       const payload = await request.json();
       
-      // --- CALLBACK QUERY HANDLER (Buttons) ---
+      // --- CALLBACK QUERY HANDLER ---
       if (payload.callback_query) {
         const callback = payload.callback_query;
         const chatId = callback.message.chat.id;
         const data = callback.data;
 
-        // Force Join Channel Check
+        // Force Join Check
         if (data === "check_join") {
           const isMember = await checkSubscription(callback.from.id, env.CHANNEL_USERNAME, env.BOT_TOKEN);
           if (isMember) {
@@ -27,7 +27,7 @@ export default {
           }
         }
 
-        // DOWNLOAD HANDLER
+        // DOWNLOAD HANDLER (The Solid Solution)
         if (data.startsWith("dl_")) {
           const trackId = data.replace("dl_", "");
           
@@ -37,30 +37,39 @@ export default {
             LEFT JOIN track_artists ta ON t.id = ta.track_id
             LEFT JOIN artists a ON ta.artist_id = a.id
             WHERE t.id = ? AND ta.is_primary = 1
+            LIMIT 1
           `).bind(trackId).first();
 
           if (!track || !track.r2_key) {
-            return await answerCallbackQuery(callback.id, "❌ MP3 File not found.", true, env.BOT_TOKEN);
+            return await answerCallbackQuery(callback.id, "❌ Song not found.", true, env.BOT_TOKEN);
           }
 
-          await answerCallbackQuery(callback.id, "📥 Sending MP3...", false, env.BOT_TOKEN);
+          await answerCallbackQuery(callback.id, "📥 Preparing audio...", false, env.BOT_TOKEN);
+
+          // Build the Encoded URL
+          const cdnBase = "https://files.zedtopvibes.com";
+          const safeFilename = encodeURIComponent(track.r2_key);
+          const audioUrl = `${cdnBase}/${safeFilename}`;
 
           try {
-            const object = await env.AUDIO.get(track.r2_key);
-            if (!object) throw new Error("File missing in R2");
-
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('audio', object.body, track.r2_key);
-            formData.append('title', track.title);
-            formData.append('performer', track.artist_name || "ZedTopVibes");
-
-            await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendAudio`, {
+            // Send to Telegram using the URL method
+            const response = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendAudio`, {
               method: 'POST',
-              body: formData
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                audio: audioUrl,
+                title: track.title,
+                performer: track.artist_name || "ZedTopVibes"
+              })
             });
+
+            const result = await response.json();
+            if (!result.ok) {
+              await sendMessage(chatId, `⚠️ Telegram error: ${result.description}`, env.BOT_TOKEN);
+            }
           } catch (err) {
-            await sendMessage(chatId, "⚠️ Error retrieving file from storage.", env.BOT_TOKEN);
+            await sendMessage(chatId, "❌ Connection to music server failed.", env.BOT_TOKEN);
           }
         }
         return new Response("OK");
@@ -73,22 +82,7 @@ export default {
       const userId = message.from.id;
       const text = message.text;
 
-      // Force Sub Logic
-      const settings = await env.DB.prepare("SELECT force_sub_enabled FROM bot_settings WHERE id = 1").first();
-      if (settings?.force_sub_enabled === 1 && userId.toString() !== env.ADMIN_ID.toString()) {
-        const isMember = await checkSubscription(userId, env.CHANNEL_USERNAME, env.BOT_TOKEN);
-        if (!isMember) {
-          const keyboard = {
-            inline_keyboard: [
-              [{ text: "Join Channel 🚀", url: `https://t.me/${env.CHANNEL_USERNAME}` }],
-              [{ text: "I have Joined ✅", callback_data: "check_join" }]
-            ]
-          };
-          return sendMessage(chatId, `⚠️ Join @${env.CHANNEL_USERNAME} to download music!`, env.BOT_TOKEN, keyboard);
-        }
-      }
-
-      // COMMAND OR SEARCH
+      // Command or Search Logic
       if (text.startsWith("/")) {
         await handleCommand(chatId, userId, text, env);
       } else {
@@ -102,6 +96,7 @@ export default {
             inline_keyboard: [[{ text: "⬇️ Download MP3", callback_data: `dl_${track.id}` }]]
           };
 
+          // Try sending Photo, fallback to Text
           const photoRes = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendPhoto`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -123,5 +118,5 @@ export default {
       console.error(err);
     }
     return new Response("OK");
-  }
+  },
 };
