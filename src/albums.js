@@ -48,9 +48,26 @@ export async function getTracksForAlbum(db, albumId) {
 }
 
 /**
- * Text-only UI for Albums (keeps tracklists clean)
+ * Updated UI for Albums: Now supports Artwork 🖼️
  */
 export function formatAlbumUI(album, tracks) {
+  const siteUrl = "https://zedtopvibes.com";
+  
+  // 1. Resolve Image URL
+  // If no cover_url exists, fallback to your site icon
+  let artwork = `${siteUrl}/apple-touch-icon.png`; 
+  
+  if (album.cover_url) {
+    if (album.cover_url.startsWith('http')) {
+      artwork = album.cover_url;
+    } else {
+      // Ensure path starts with /
+      const cleanPath = album.cover_url.startsWith('/') ? album.cover_url : `/${album.cover_url}`;
+      artwork = `${siteUrl}${cleanPath}`;
+    }
+  }
+
+  // 2. Build Caption
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
   caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
@@ -66,5 +83,6 @@ export function formatAlbumUI(album, tracks) {
     }]);
   });
 
-  return { caption, keyboard };
+  // Return artwork so index.js can use it with sendPhoto
+  return { caption, artwork, keyboard };
 }
