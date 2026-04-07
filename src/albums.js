@@ -1,8 +1,21 @@
 // src/albums.js
 
+const IMAGE_BASE = "https://files.zedtopvibes.com";
+
+function getAlbumImage(album) {
+    if (album.cover_url && album.cover_url !== 'null' && album.cover_url !== '') {
+        if (album.cover_url.startsWith('/')) {
+            return `${IMAGE_BASE}${album.cover_url}`;
+        }
+        // If it's already a full link, use it; otherwise, prefix it
+        return album.cover_url.startsWith('http') ? album.cover_url : `${IMAGE_BASE}/${album.cover_url}`;
+    }
+    // Fallback image if database entry is empty
+    return 'https://zedtopvibes.com/apple-touch-icon.png';
+}
+
 export async function searchAlbum(db, query) {
   const searchTerm = `%${query.toLowerCase()}%`;
-  
   const sql = `
     SELECT a.*, ar.name AS artist_name
     FROM albums a
@@ -12,7 +25,6 @@ export async function searchAlbum(db, query) {
       AND a.status = 'published'
     LIMIT 1
   `;
-
   try {
     return await db.prepare(sql).bind(searchTerm).first();
   } catch (err) {
@@ -31,7 +43,6 @@ export async function getTracksForAlbum(db, albumId) {
       AND t.status = 'published'
     ORDER BY at.track_number ASC
   `;
-
   try {
     const { results } = await db.prepare(sql).bind(albumId).all();
     return results || [];
@@ -42,6 +53,8 @@ export async function getTracksForAlbum(db, albumId) {
 }
 
 export function formatAlbumUI(album, tracks) {
+  const artwork = getAlbumImage(album);
+  
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
   caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
@@ -57,6 +70,5 @@ export function formatAlbumUI(album, tracks) {
     }]);
   });
 
-  // We only return caption and keyboard now (No artwork)
-  return { caption, keyboard };
+  return { caption, artwork, keyboard };
 }
