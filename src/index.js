@@ -7,6 +7,7 @@ import { handleAlbum } from "./commands/album.js";
 import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { handleList } from "./commands/list.js";
+import { listYears, showYearContent } from "./commands/year.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
 const CDN_URL = "https://files.zedtopvibes.com";
@@ -153,6 +154,90 @@ Need more help? Contact @ZedTopVibes`
       return;
     }
     
+    // Handle Browse Years button
+    if (data === "browse_years") {
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      await listYears(chatId, 1, env);
+      return;
+    }
+    
+    // Handle Year pagination
+    if (data.startsWith("page_years_")) {
+      const page = parseInt(data.replace("page_years_", ""));
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId
+        })
+      }).catch(() => {});
+      
+      await listYears(chatId, page, env);
+      return;
+    }
+    
+    // Handle Year Content selection
+    if (data.startsWith("year_content_")) {
+      const parts = data.split("_");
+      const year = parts[2];
+      const page = parseInt(parts[3]);
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId
+        })
+      }).catch(() => {});
+      
+      await showYearContent(chatId, year, page, env);
+      return;
+    }
+    
+    // Handle Year Content pagination
+    if (data.startsWith("page_year_")) {
+      const parts = data.split("_");
+      const year = parts[2];
+      const page = parseInt(parts[3]);
+      
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id })
+      });
+      
+      await fetch(`${TELEGRAM_API}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId
+        })
+      }).catch(() => {});
+      
+      await showYearContent(chatId, year, page, env);
+      return;
+    }
+    
     // Handle List buttons
     if (data === "list_artists") {
       await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
@@ -194,7 +279,7 @@ Need more help? Contact @ZedTopVibes`
       return;
     }
     
-    // Handle Pagination
+    // Handle Pagination for lists
     if (data.startsWith("page_")) {
       const parts = data.split("_");
       const listType = parts[1];
@@ -206,7 +291,6 @@ Need more help? Contact @ZedTopVibes`
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
       
-      // Delete current message and send new page
       await fetch(`${TELEGRAM_API}/deleteMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
