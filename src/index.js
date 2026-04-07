@@ -368,7 +368,6 @@ async function handleUpdate(update, env) {
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
       
-      // Get album title and tracks
       const albumQuery = `
         SELECT title FROM albums WHERE id = ? AND deleted_at IS NULL AND status = 'published'
       `;
@@ -401,7 +400,6 @@ async function handleUpdate(update, env) {
       const totalTracks = tracks.results.length;
       const albumTitle = album ? album.title : "Album";
       
-      // Send initial status message
       const statusMsg = await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -413,7 +411,6 @@ async function handleUpdate(update, env) {
       const statusData = await statusMsg.json();
       const statusMessageId = statusData.result.message_id;
       
-      // Send each track with progress update
       for (let i = 0; i < totalTracks; i++) {
         const track = tracks.results[i];
         const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
@@ -431,7 +428,6 @@ async function handleUpdate(update, env) {
           })
         });
         
-        // Update progress message
         await fetch(`${TELEGRAM_API}/editMessageText`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -442,20 +438,30 @@ async function handleUpdate(update, env) {
           })
         });
         
-        // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Final completion message
+      // Cool completion message with auto-delete
       await fetch(`${TELEGRAM_API}/editMessageText`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
           message_id: statusMessageId,
-          text: `✅ Complete! ${totalTracks}/${totalTracks} tracks sent from "${albumTitle}"`
+          text: `✨ Done! ✨\n\n🎉 All ${totalTracks} tracks from "${albumTitle}" have been delivered!\n\n🎧 Enjoy the music! 🎧`
         })
       });
+      
+      setTimeout(async () => {
+        await fetch(`${TELEGRAM_API}/deleteMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: statusMessageId
+          })
+        }).catch(() => {});
+      }, 5000);
       
       return;
     }
@@ -470,7 +476,6 @@ async function handleUpdate(update, env) {
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
       
-      // Get EP title and tracks
       const epQuery = `
         SELECT title FROM eps WHERE id = ? AND deleted_at IS NULL AND status = 'published'
       `;
@@ -503,7 +508,6 @@ async function handleUpdate(update, env) {
       const totalTracks = tracks.results.length;
       const epTitle = ep ? ep.title : "EP";
       
-      // Send initial status message
       const statusMsg = await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -515,7 +519,6 @@ async function handleUpdate(update, env) {
       const statusData = await statusMsg.json();
       const statusMessageId = statusData.result.message_id;
       
-      // Send each track with progress update
       for (let i = 0; i < totalTracks; i++) {
         const track = tracks.results[i];
         const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
@@ -533,7 +536,6 @@ async function handleUpdate(update, env) {
           })
         });
         
-        // Update progress message
         await fetch(`${TELEGRAM_API}/editMessageText`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -547,16 +549,27 @@ async function handleUpdate(update, env) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Final completion message
+      // Cool completion message with auto-delete
       await fetch(`${TELEGRAM_API}/editMessageText`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
           message_id: statusMessageId,
-          text: `✅ Complete! ${totalTracks}/${totalTracks} tracks sent from "${epTitle}"`
+          text: `✨ Done! ✨\n\n🎉 All ${totalTracks} tracks from "${epTitle}" have been delivered!\n\n🎧 Enjoy the music! 🎧`
         })
       });
+      
+      setTimeout(async () => {
+        await fetch(`${TELEGRAM_API}/deleteMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: statusMessageId
+          })
+        }).catch(() => {});
+      }, 5000);
       
       return;
     }
@@ -571,7 +584,6 @@ async function handleUpdate(update, env) {
         body: JSON.stringify({ callback_query_id: update.callback_query.id })
       });
       
-      // Get playlist title and tracks
       const playlistQuery = `
         SELECT name FROM playlists WHERE id = ? AND deleted_at IS NULL AND status = 'published'
       `;
@@ -604,7 +616,6 @@ async function handleUpdate(update, env) {
       const totalTracks = tracks.results.length;
       const playlistName = playlist ? playlist.name : "Playlist";
       
-      // Send initial status message
       const statusMsg = await fetch(`${TELEGRAM_API}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -616,7 +627,6 @@ async function handleUpdate(update, env) {
       const statusData = await statusMsg.json();
       const statusMessageId = statusData.result.message_id;
       
-      // Send each track with progress update
       for (let i = 0; i < totalTracks; i++) {
         const track = tracks.results[i];
         const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
@@ -634,7 +644,6 @@ async function handleUpdate(update, env) {
           })
         });
         
-        // Update progress message
         await fetch(`${TELEGRAM_API}/editMessageText`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -648,16 +657,27 @@ async function handleUpdate(update, env) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Final completion message
+      // Cool completion message with auto-delete
       await fetch(`${TELEGRAM_API}/editMessageText`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
           message_id: statusMessageId,
-          text: `✅ Complete! ${totalTracks}/${totalTracks} tracks sent from "${playlistName}"`
+          text: `✨ Done! ✨\n\n🎉 All ${totalTracks} tracks from "${playlistName}" have been delivered!\n\n🎧 Enjoy the music! 🎧`
         })
       });
+      
+      setTimeout(async () => {
+        await fetch(`${TELEGRAM_API}/deleteMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: statusMessageId
+          })
+        }).catch(() => {});
+      }, 5000);
       
       return;
     }
