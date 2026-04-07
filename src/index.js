@@ -8,7 +8,7 @@ import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
-export default {
+export default { 
   async fetch(request, env, ctx) {
     if (request.method === "POST" && new URL(request.url).pathname === "/webhook") {
       try {
