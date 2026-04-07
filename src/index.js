@@ -2,6 +2,9 @@ import { handleStart } from "./commands/start.js";
 import { handleForceSub } from "./commands/forcesub.js";
 import { handleSearch } from "./commands/search.js";
 import { handleArtist } from "./commands/artist.js";
+import { handleAlbum } from "./commands/album.js";
+import { handleEp } from "./commands/ep.js";
+import { handlePlaylist } from "./commands/playlist.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
 
 export default {
@@ -113,6 +116,54 @@ async function handleUpdate(update, env) {
           body: JSON.stringify({
             chat_id: chatId,
             text: "Usage: /artist [artist name]\nExample: /artist Kanina"
+          })
+        });
+      }
+    }
+    // Handle /album command
+    else if (text.startsWith("/album")) {
+      const albumName = text.replace("/album", "").trim();
+      if (albumName) {
+        await handleAlbum(chatId, albumName, env);
+      } else {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Usage: /album [album name]\nExample: /album Thriller"
+          })
+        });
+      }
+    }
+    // Handle /ep command
+    else if (text.startsWith("/ep")) {
+      const epName = text.replace("/ep", "").trim();
+      if (epName) {
+        await handleEp(chatId, epName, env);
+      } else {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Usage: /ep [ep name]\nExample: /ep Love Songs"
+          })
+        });
+      }
+    }
+    // Handle /playlist command
+    else if (text.startsWith("/playlist")) {
+      const playlistName = text.replace("/playlist", "").trim();
+      if (playlistName) {
+        await handlePlaylist(chatId, playlistName, env);
+      } else {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Usage: /playlist [playlist name]\nExample: /playlist Top Hits"
           })
         });
       }
