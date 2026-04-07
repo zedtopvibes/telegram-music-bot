@@ -16,10 +16,13 @@ export async function handleStart(chatId, firstName, env) {
       ],
       [
         { text: "📋 Playlists", callback_data: "list_playlists" },
-        { text: "📆 By Year", callback_data: "browse_years" }
+        { text: "🆕 New", callback_data: "new_releases" }
       ],
       [
-        { text: "❓ Help", callback_data: "help" },
+        { text: "📆 By Year", callback_data: "browse_years" },
+        { text: "❓ Help", callback_data: "help" }
+      ],
+      [
         { text: "❌", callback_data: "delete_message" }
       ]
     ]
