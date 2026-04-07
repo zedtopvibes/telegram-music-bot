@@ -1,15 +1,16 @@
 // src/albums.js
 
-// UPDATED: Removed 'files.' subdomain to use main domain
 const IMAGE_BASE = "https://zedtopvibes.com";
 
 function getAlbumImage(album) {
+    // Logic handles /images/albums/... paths from your D1 table
     if (album.cover_url && album.cover_url !== 'null' && album.cover_url !== '') {
         if (album.cover_url.startsWith('/')) {
             return `${IMAGE_BASE}${album.cover_url}`;
         }
         return album.cover_url.startsWith('http') ? album.cover_url : `${IMAGE_BASE}/${album.cover_url}`;
     }
+    // Fallback if cover_url is NULL in D1
     return 'https://zedtopvibes.com/apple-touch-icon.png';
 }
 
@@ -55,7 +56,7 @@ export function formatAlbumUI(album, tracks) {
   const artwork = getAlbumImage(album);
   
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
-  caption += `👤 <b>Artist:</b> ${album.artist_name || album.artist || "Unknown Artist"}\n\n`;
+  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
 
   const keyboard = { inline_keyboard: [] };
