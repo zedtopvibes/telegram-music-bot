@@ -45,8 +45,10 @@ export async function handleTrack(chatId, query, env) {
     const number = index + 1;
     const artistDisplay = track.artist_name || "Unknown Artist";
     responseText += `${number}. 🎵 ${track.title} - ${artistDisplay}\n`;
-    buttons.push([{ text: `🎵 ${track.title}`, callback_data: `play_${track.id}` }]);
+    buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
   });
+  
+  responseText += `\nClick a track button to play (coming soon)`;
   
   const keyboard = {
     inline_keyboard: buttons
