@@ -1,16 +1,15 @@
 // src/albums.js
 
-const IMAGE_BASE = "https://files.zedtopvibes.com";
+// UPDATED: Removed 'files.' subdomain to use main domain
+const IMAGE_BASE = "https://zedtopvibes.com";
 
 function getAlbumImage(album) {
     if (album.cover_url && album.cover_url !== 'null' && album.cover_url !== '') {
         if (album.cover_url.startsWith('/')) {
             return `${IMAGE_BASE}${album.cover_url}`;
         }
-        // If it's already a full link, use it; otherwise, prefix it
         return album.cover_url.startsWith('http') ? album.cover_url : `${IMAGE_BASE}/${album.cover_url}`;
     }
-    // Fallback image if database entry is empty
     return 'https://zedtopvibes.com/apple-touch-icon.png';
 }
 
@@ -35,7 +34,7 @@ export async function searchAlbum(db, query) {
 
 export async function getTracksForAlbum(db, albumId) {
   const sql = `
-    SELECT t.id, t.title, t.r2_key, at.track_number
+    SELECT t.id, t.title, at.track_number
     FROM tracks t
     JOIN album_tracks at ON t.id = at.track_id
     WHERE at.album_id = ? 
@@ -56,7 +55,7 @@ export function formatAlbumUI(album, tracks) {
   const artwork = getAlbumImage(album);
   
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
-  caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
+  caption += `👤 <b>Artist:</b> ${album.artist_name || album.artist || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
 
   const keyboard = { inline_keyboard: [] };
