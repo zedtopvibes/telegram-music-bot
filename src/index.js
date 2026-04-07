@@ -9,13 +9,12 @@ export default {
     try {
       const payload = await request.json();
 
-      // --- CALLBACK HANDLER (Downloads) ---
+      // --- DOWNLOAD HANDLER ---
       if (payload.callback_query) {
         const cb = payload.callback_query;
         if (cb.data.startsWith("dl_")) {
           const trackId = cb.data.replace("dl_", "");
           
-          // Get track info for download
           const track = await env.DB.prepare(`
             SELECT t.title, t.r2_key, a.name as artist 
             FROM tracks t 
@@ -44,29 +43,24 @@ export default {
         return new Response("OK");
       }
 
-      // --- MESSAGE HANDLER (Search) ---
+      // --- SEARCH HANDLER ---
       const msg = payload.message;
       if (!msg || !msg.text) return new Response("OK");
       const query = msg.text.trim();
 
       if (query.startsWith("/")) return new Response("OK");
 
-      // Parallel search for speed
       const [trackResults, albumResult] = await Promise.all([
         searchTracks(env.DB, query),
         searchAlbum(env.DB, query)
       ]);
 
       if (albumResult) {
-        // ALBUM FOUND: Now updated to show with Image 🖼️
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
         const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
-        
-        // Switched from sendMessage to sendPhoto
         await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
 
       } else if (trackResults.length > 0) {
-        // TRACK FOUND: Show with Image 🖼️
         const track = trackResults[0];
         const { caption, artwork } = formatTrackMessage(track);
         const keyboard = {
@@ -79,7 +73,6 @@ export default {
       }
 
     } catch (err) {
-      // Logic to prevent the bot from going silent on internal errors
       console.error("Worker Execution Error:", err);
     }
     return new Response("OK");
