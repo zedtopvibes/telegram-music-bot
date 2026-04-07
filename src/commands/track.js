@@ -7,9 +7,7 @@ export async function handleTrack(chatId, query, env) {
     SELECT 
       t.id,
       t.title,
-      t.slug,
-      a.name as artist_name,
-      a.slug as artist_slug
+      a.name as artist_name
     FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id
     LEFT JOIN artists a ON ta.artist_id = a.id
@@ -38,23 +36,29 @@ export async function handleTrack(chatId, query, env) {
     return;
   }
   
-  // Build response message
+  // Build response message with buttons
   let responseText = `🔍 Tracks found for "${query}":\n\n`;
+  
+  const buttons = [];
   
   results.results.forEach((track, index) => {
     const number = index + 1;
     const artistDisplay = track.artist_name || "Unknown Artist";
     responseText += `${number}. 🎵 ${track.title} - ${artistDisplay}\n`;
+    buttons.push([{ text: `🎵 ${track.title}`, callback_data: `play_${track.id}` }]);
   });
   
-  responseText += `\nSend /play [number] to play a track (coming soon)`;
+  const keyboard = {
+    inline_keyboard: buttons
+  };
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText
+      text: responseText,
+      reply_markup: keyboard
     })
   });
 }
