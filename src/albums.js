@@ -42,20 +42,6 @@ export async function getTracksForAlbum(db, albumId) {
 }
 
 export function formatAlbumUI(album, tracks) {
-  // Corrected domain for your PNG files
-  const siteUrl = "https://files.zedtopvibes.com";
-  
-  let artwork = `${siteUrl}/apple-touch-icon.png`; 
-  
-  if (album.cover_url) {
-    if (album.cover_url.startsWith('http')) {
-      artwork = album.cover_url;
-    } else {
-      const cleanPath = album.cover_url.startsWith('/') ? album.cover_url : `/${album.cover_url}`;
-      artwork = `${siteUrl}${cleanPath}`;
-    }
-  }
-
   let caption = `💿 <b>ALBUM: ${album.title}</b>\n`;
   caption += `👤 <b>Artist:</b> ${album.artist_name || "Unknown Artist"}\n\n`;
   caption += `<b>Tracklist:</b>\n`;
@@ -71,5 +57,6 @@ export function formatAlbumUI(album, tracks) {
     }]);
   });
 
-  return { caption, artwork, keyboard };
+  // We only return caption and keyboard now (No artwork)
+  return { caption, keyboard };
 }
