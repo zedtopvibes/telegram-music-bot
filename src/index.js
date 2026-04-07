@@ -9,7 +9,6 @@ export default {
     try {
       const payload = await request.json();
 
-      // --- DOWNLOAD HANDLER ---
       if (payload.callback_query) {
         const cb = payload.callback_query;
         if (cb.data.startsWith("dl_")) {
@@ -43,7 +42,6 @@ export default {
         return new Response("OK");
       }
 
-      // --- SEARCH HANDLER ---
       const msg = payload.message;
       if (!msg || !msg.text) return new Response("OK");
       const query = msg.text.trim();
@@ -56,11 +54,14 @@ export default {
       ]);
 
       if (albumResult) {
+        // ALBUM FOUND: Send as TEXT only for stability
         const tracks = await getTracksForAlbum(env.DB, albumResult.id);
-        const { caption, artwork, keyboard } = formatAlbumUI(albumResult, tracks);
-        await sendPhoto(msg.chat.id, artwork, caption, keyboard, env.BOT_TOKEN);
+        const { caption, keyboard } = formatAlbumUI(albumResult, tracks);
+        
+        await sendMessage(msg.chat.id, caption, env.BOT_TOKEN, keyboard);
 
       } else if (trackResults.length > 0) {
+        // TRACK FOUND: Continue using Image (this part worked)
         const track = trackResults[0];
         const { caption, artwork } = formatTrackMessage(track);
         const keyboard = {
@@ -73,7 +74,7 @@ export default {
       }
 
     } catch (err) {
-      console.error("Worker Execution Error:", err);
+      console.error("Worker Error:", err);
     }
     return new Response("OK");
   }
