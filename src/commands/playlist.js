@@ -53,7 +53,7 @@ export async function handlePlaylist(chatId, playlistName, env) {
     responseText += `${playlistResult.description}\n\n`;
   }
   
-  responseText += `🎵 Tracks:\n`;
+  responseText += `🎵 Tracks:\n\n`;
   
   // Build inline keyboard buttons for tracks
   const buttons = [];
@@ -62,11 +62,13 @@ export async function handlePlaylist(chatId, playlistName, env) {
     tracksResult.results.forEach((track, index) => {
       const number = index + 1;
       responseText += `${number}. ${track.title}\n`;
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `play_${track.id}` }]);
+      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
     });
   } else {
     responseText += `No tracks found.`;
   }
+  
+  responseText += `\nClick a track button to play (coming soon)`;
   
   const keyboard = {
     inline_keyboard: buttons
