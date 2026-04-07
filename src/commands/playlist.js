@@ -7,8 +7,7 @@ export async function handlePlaylist(chatId, playlistName, env) {
     SELECT 
       id,
       name,
-      description,
-      cover_url
+      description
     FROM playlists
     WHERE name LIKE ?
       AND deleted_at IS NULL
@@ -56,23 +55,30 @@ export async function handlePlaylist(chatId, playlistName, env) {
   
   responseText += `🎵 Tracks:\n`;
   
+  // Build inline keyboard buttons for tracks
+  const buttons = [];
+  
   if (tracksResult.results && tracksResult.results.length > 0) {
     tracksResult.results.forEach((track, index) => {
       const number = index + 1;
       responseText += `${number}. ${track.title}\n`;
+      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `play_${track.id}` }]);
     });
   } else {
     responseText += `No tracks found.`;
   }
   
-  responseText += `\n\nSend /play [number] to play a track (coming soon)`;
+  const keyboard = {
+    inline_keyboard: buttons
+  };
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText
+      text: responseText,
+      reply_markup: keyboard
     })
   });
 }
