@@ -17,7 +17,6 @@ export async function handleArtist(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const artistId = callbackQuery.data.replace("artist_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -43,11 +42,10 @@ export async function handleArtist(callbackQuery, env) {
     body: JSON.stringify({ callback_query_id: callbackQuery.id })
   });
   
-  // Delete previous message
   await deletePreviousMessage(chatId, env);
   
   const artistQuery = `
-    SELECT name, bio, country FROM artists 
+    SELECT name FROM artists 
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
@@ -75,18 +73,15 @@ export async function handleArtist(callbackQuery, env) {
   `;
   
   const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
+  const totalTracks = tracks.results ? tracks.results.length : 0;
   
-  let responseText = `🎤 ${artist.name}\n\n`;
-  if (artist.bio) responseText += `${artist.bio}\n\n`;
-  if (artist.country) responseText += `📍 Country: ${artist.country}\n\n`;
-  responseText += `🎵 Tracks:\n\n`;
+  let responseText = `👤 ARTIST: ${artist.name}\n\n`;
+  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
   
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track, index) => {
-      const number = index + 1;
-      responseText += `${number}. ${track.title}\n`;
+    tracks.results.forEach((track) => {
       buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
     });
   } else {
@@ -118,7 +113,6 @@ export async function handleAlbum(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const albumId = callbackQuery.data.replace("album_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -147,8 +141,7 @@ export async function handleAlbum(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const albumQuery = `
-    SELECT title, description, release_date, genre, label
-    FROM albums
+    SELECT title, release_date FROM albums
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const album = await env.DB.prepare(albumQuery).bind(albumId).first();
@@ -165,6 +158,14 @@ export async function handleAlbum(callbackQuery, env) {
     return;
   }
   
+  // Get artist name for this album
+  const artistQuery = `
+    SELECT a.name FROM artists a
+    LEFT JOIN albums alb ON alb.artist_id = a.id
+    WHERE alb.id = ? AND a.deleted_at IS NULL AND a.status = 'published'
+  `;
+  const artist = await env.DB.prepare(artistQuery).bind(albumId).first();
+  
   const tracksQuery = `
     SELECT t.id, t.title, at.track_number
     FROM album_tracks at
@@ -174,20 +175,21 @@ export async function handleAlbum(callbackQuery, env) {
   `;
   
   const tracks = await env.DB.prepare(tracksQuery).bind(albumId).all();
+  const totalTracks = tracks.results ? tracks.results.length : 0;
   
-  let responseText = `💿 ALBUM: ${album.title}\n\n`;
-  if (album.description) responseText += `${album.description}\n\n`;
-  if (album.release_date) responseText += `📅 Release: ${album.release_date}\n`;
-  if (album.genre) responseText += `🎸 Genre: ${album.genre}\n`;
-  if (album.label) responseText += `🏷️ Label: ${album.label}\n\n`;
-  responseText += `🎵 Tracklist:\n\n`;
+  let responseText = `💽 ALBUM: ${album.title}\n\n`;
+  if (artist && artist.name) {
+    responseText += `👤 Artist: ${artist.name}\n`;
+  }
+  if (album.release_date) {
+    responseText += `📅 Release: ${album.release_date}\n`;
+  }
+  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
   
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track, index) => {
-      const number = index + 1;
-      responseText += `${number}. ${track.title}\n`;
+    tracks.results.forEach((track) => {
       buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
     });
     buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
@@ -220,7 +222,6 @@ export async function handleEp(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const epId = callbackQuery.data.replace("ep_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -249,8 +250,7 @@ export async function handleEp(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const epQuery = `
-    SELECT title, description, release_date, genre, label
-    FROM eps
+    SELECT title, release_date FROM eps
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const ep = await env.DB.prepare(epQuery).bind(epId).first();
@@ -267,6 +267,14 @@ export async function handleEp(callbackQuery, env) {
     return;
   }
   
+  // Get artist name for this EP
+  const artistQuery = `
+    SELECT a.name FROM artists a
+    LEFT JOIN eps e ON e.artist_id = a.id
+    WHERE e.id = ? AND a.deleted_at IS NULL AND a.status = 'published'
+  `;
+  const artist = await env.DB.prepare(artistQuery).bind(epId).first();
+  
   const tracksQuery = `
     SELECT t.id, t.title, et.track_number
     FROM ep_tracks et
@@ -276,20 +284,21 @@ export async function handleEp(callbackQuery, env) {
   `;
   
   const tracks = await env.DB.prepare(tracksQuery).bind(epId).all();
+  const totalTracks = tracks.results ? tracks.results.length : 0;
   
   let responseText = `🎵 EP: ${ep.title}\n\n`;
-  if (ep.description) responseText += `${ep.description}\n\n`;
-  if (ep.release_date) responseText += `📅 Release: ${ep.release_date}\n`;
-  if (ep.genre) responseText += `🎸 Genre: ${ep.genre}\n`;
-  if (ep.label) responseText += `🏷️ Label: ${ep.label}\n\n`;
-  responseText += `🎵 Tracklist:\n\n`;
+  if (artist && artist.name) {
+    responseText += `👤 Artist: ${artist.name}\n`;
+  }
+  if (ep.release_date) {
+    responseText += `📅 Release: ${ep.release_date}\n`;
+  }
+  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
   
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track, index) => {
-      const number = index + 1;
-      responseText += `${number}. ${track.title}\n`;
+    tracks.results.forEach((track) => {
       buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
     });
     buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
@@ -322,7 +331,6 @@ export async function handlePlaylist(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const playlistId = callbackQuery.data.replace("playlist_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -351,8 +359,7 @@ export async function handlePlaylist(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const playlistQuery = `
-    SELECT name, description
-    FROM playlists
+    SELECT name FROM playlists
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
@@ -370,26 +377,27 @@ export async function handlePlaylist(callbackQuery, env) {
   }
   
   const tracksQuery = `
-    SELECT t.id, t.title, pt.position
+    SELECT t.id, t.title, a.name as artist_name
     FROM playlist_tracks pt
     LEFT JOIN tracks t ON pt.track_id = t.id
+    LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+    LEFT JOIN artists a ON ta.artist_id = a.id
     WHERE pt.playlist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
     ORDER BY pt.position
   `;
   
   const tracks = await env.DB.prepare(tracksQuery).bind(playlistId).all();
+  const totalTracks = tracks.results ? tracks.results.length : 0;
   
   let responseText = `📋 PLAYLIST: ${playlist.name}\n\n`;
-  if (playlist.description) responseText += `${playlist.description}\n\n`;
-  responseText += `🎵 Tracks:\n\n`;
+  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
   
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track, index) => {
-      const number = index + 1;
-      responseText += `${number}. ${track.title}\n`;
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
+    tracks.results.forEach((track) => {
+      const displayText = track.artist_name ? `${track.title} - ${track.artist_name}` : track.title;
+      buttons.push([{ text: `🎵 ${displayText.substring(0, 50)}`, callback_data: `track_${track.id}` }]);
     });
     buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
   } else {
@@ -421,7 +429,6 @@ export async function handleTrack(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const trackId = callbackQuery.data.replace("track_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -471,6 +478,7 @@ export async function handleTrack(callbackQuery, env) {
   
   const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
   const artistName = track.artist_name || "Unknown Artist";
+  const caption = `🎧 ${track.title} - ${artistName}`;
   
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
     method: "POST",
@@ -480,7 +488,7 @@ export async function handleTrack(callbackQuery, env) {
       audio: audioUrl,
       title: track.title,
       performer: artistName,
-      caption: `🎵 ${track.title}\n🎤 ${artistName}`
+      caption: caption
     })
   });
 }
@@ -490,7 +498,6 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const albumId = callbackQuery.data.replace("getall_album_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -563,6 +570,7 @@ export async function handleGetAllAlbum(callbackQuery, env) {
     const track = tracks.results[i];
     const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
     const artistName = track.artist_name || "Unknown Artist";
+    const caption = `🎧 ${track.title} - ${artistName}`;
     
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
       method: "POST",
@@ -572,7 +580,7 @@ export async function handleGetAllAlbum(callbackQuery, env) {
         audio: audioUrl,
         title: track.title,
         performer: artistName,
-        caption: `🎵 ${track.title}\n🎤 ${artistName}`
+        caption: caption
       })
     });
     
@@ -613,7 +621,6 @@ export async function handleGetAllEp(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const epId = callbackQuery.data.replace("getall_ep_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -686,6 +693,7 @@ export async function handleGetAllEp(callbackQuery, env) {
     const track = tracks.results[i];
     const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
     const artistName = track.artist_name || "Unknown Artist";
+    const caption = `🎧 ${track.title} - ${artistName}`;
     
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
       method: "POST",
@@ -695,7 +703,7 @@ export async function handleGetAllEp(callbackQuery, env) {
         audio: audioUrl,
         title: track.title,
         performer: artistName,
-        caption: `🎵 ${track.title}\n🎤 ${artistName}`
+        caption: caption
       })
     });
     
@@ -736,7 +744,6 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const playlistId = callbackQuery.data.replace("getall_playlist_", "");
   
-  // Check subscription
   const subCheck = await checkUserSubscription(chatId, env);
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
@@ -809,6 +816,7 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
     const track = tracks.results[i];
     const audioUrl = `${CDN_URL}/${encodeURIComponent(track.filename)}`;
     const artistName = track.artist_name || "Unknown Artist";
+    const caption = `🎧 ${track.title} - ${artistName}`;
     
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
       method: "POST",
@@ -818,7 +826,7 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
         audio: audioUrl,
         title: track.title,
         performer: artistName,
-        caption: `🎵 ${track.title}\n🎤 ${artistName}`
+        caption: caption
       })
     });
     
