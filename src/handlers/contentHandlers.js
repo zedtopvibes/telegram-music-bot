@@ -602,7 +602,7 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
-  // Send artwork if available using IMAGE_CDN
+  // Send artwork for single track (premium feel)
   if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
     let artworkUrl = track.artwork_url;
     if (!artworkUrl.startsWith("http")) {
@@ -696,7 +696,7 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   const totalTracks = tracks.results.length;
   const albumTitle = album ? album.title : "Album";
   
-  // Send album cover if available using IMAGE_CDN
+  // Send album cover ONCE (not per track)
   if (album && album.cover_url && album.cover_url !== "" && album.cover_url !== "null") {
     let coverUrl = album.cover_url;
     if (!coverUrl.startsWith("http")) {
@@ -725,6 +725,7 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   const statusData = await statusMsg.json();
   const statusMessageId = statusData.result.message_id;
   
+  // Send ONLY audio files (no artwork per track)
   for (let i = 0; i < totalTracks; i++) {
     const track = tracks.results[i];
     const audioUrl = `${AUDIO_CDN}/${encodeURIComponent(track.filename)}`;
@@ -837,7 +838,7 @@ export async function handleGetAllEp(callbackQuery, env) {
   const totalTracks = tracks.results.length;
   const epTitle = ep ? ep.title : "EP";
   
-  // Send EP cover if available using IMAGE_CDN
+  // Send EP cover ONCE (not per track)
   if (ep && ep.cover_url && ep.cover_url !== "" && ep.cover_url !== "null") {
     let coverUrl = ep.cover_url;
     if (!coverUrl.startsWith("http")) {
@@ -866,6 +867,7 @@ export async function handleGetAllEp(callbackQuery, env) {
   const statusData = await statusMsg.json();
   const statusMessageId = statusData.result.message_id;
   
+  // Send ONLY audio files (no artwork per track)
   for (let i = 0; i < totalTracks; i++) {
     const track = tracks.results[i];
     const audioUrl = `${AUDIO_CDN}/${encodeURIComponent(track.filename)}`;
@@ -978,7 +980,7 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   const totalTracks = tracks.results.length;
   const playlistName = playlist ? playlist.name : "Playlist";
   
-  // Send playlist cover if available using IMAGE_CDN
+  // Send playlist cover ONCE (not per track)
   if (playlist && playlist.cover_url && playlist.cover_url !== "" && playlist.cover_url !== "null") {
     let coverUrl = playlist.cover_url;
     if (!coverUrl.startsWith("http")) {
@@ -1007,6 +1009,7 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   const statusData = await statusMsg.json();
   const statusMessageId = statusData.result.message_id;
   
+  // Send ONLY audio files (no artwork per track)
   for (let i = 0; i < totalTracks; i++) {
     const track = tracks.results[i];
     const audioUrl = `${AUDIO_CDN}/${encodeURIComponent(track.filename)}`;
