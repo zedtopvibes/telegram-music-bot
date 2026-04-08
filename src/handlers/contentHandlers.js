@@ -545,7 +545,6 @@ export async function handlePlaylist(callbackQuery, env) {
     setLastMessageId(chatId, responseData.result.message_id);
   }
 }
-
 export async function handleTrack(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
@@ -577,7 +576,7 @@ export async function handleTrack(callbackQuery, env) {
   });
   
   const trackQuery = `
-    SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
+    SELECT t.title, t.filename, a.name as artist_name
     FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
     LEFT JOIN artists a ON ta.artist_id = a.id
@@ -602,25 +601,7 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
-  // Send artwork for single track (premium feel)
-  if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
-    let artworkUrl = track.artwork_url;
-    if (!artworkUrl.startsWith("http")) {
-      artworkUrl = `${IMAGE_CDN}${artworkUrl}`;
-    }
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: artworkUrl,
-        caption: caption
-      })
-    });
-  }
-  
-  // Send audio
+  // Send audio only (no artwork)
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
