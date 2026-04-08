@@ -8,6 +8,7 @@ import { checkSubscription } from "../middleware/checkSubscription.js";
 import { storeDeepLink, generateDeepLink } from "../utils/deepLinks.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
+const IMAGE_CDN = "https://zedtopvibes.com";
 
 async function checkUserSubscription(chatId, env) {
   const subCheck = await checkSubscription(chatId, env);
@@ -359,7 +360,40 @@ Need more help? Contact @ZedTopVibes`
     });
     
     if (isGroup) {
-      // In group: generate deep link button instead of sending audio directly
+      // First, get track details for artwork
+      const trackQuery = `
+        SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
+        FROM tracks t
+        LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
+        LEFT JOIN artists a ON ta.artist_id = a.id
+        WHERE t.id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+      `;
+      
+      const track = await env.DB.prepare(trackQuery).bind(trackId).first();
+      
+      if (track && track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
+        // Send artwork in group
+        let artworkUrl = track.artwork_url;
+        if (!artworkUrl.startsWith("http")) {
+          artworkUrl = `${IMAGE_CDN}${artworkUrl}`;
+        }
+        
+        const artistName = track.artist_name || "Unknown Artist";
+        const caption = `🎧 ${track.title} - ${artistName}`;
+        
+        await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: artworkUrl,
+            caption: caption,
+            reply_to_message_id: callbackQuery.message.message_id
+          })
+        });
+      }
+      
+      // Generate deep link button
       const requestId = `track_${trackId}_${Date.now()}_${chatId}`;
       const username = callbackQuery.from.username || callbackQuery.from.first_name;
       
