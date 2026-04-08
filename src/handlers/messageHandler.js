@@ -16,6 +16,7 @@ export async function handleMessage(message, env) {
   const chatId = message.chat.id;
   const text = message.text || "";
   const firstName = message.chat.first_name || "User";
+  const messageId = message.message_id;
   
   // Skip force sub check for /forcesub commands (admin only)
   if (text.startsWith("/forcesub")) {
@@ -33,6 +34,7 @@ export async function handleMessage(message, env) {
       body: JSON.stringify({
         chat_id: chatId,
         text: subCheck.message,
+        reply_to_message_id: messageId,
         reply_markup: subCheck.keyboard
       })
     });
@@ -41,20 +43,21 @@ export async function handleMessage(message, env) {
   
   // Handle /start command
   if (text === "/start") {
-    await handleStart(chatId, firstName, env);
+    await handleStart(chatId, firstName, env, messageId);
   }
   // Handle /track command
   else if (text.startsWith("/track")) {
     const trackQuery = text.replace("/track", "").trim();
     if (trackQuery) {
-      await handleTrack(chatId, trackQuery, env);
+      await handleTrack(chatId, trackQuery, env, messageId);
     } else {
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "Usage: /track [song name or artist]\nExample: /track Kanina"
+          text: "Usage: /track [song name or artist]\nExample: /track Kanina",
+          reply_to_message_id: messageId
         })
       });
     }
@@ -63,14 +66,15 @@ export async function handleMessage(message, env) {
   else if (text.startsWith("/artist")) {
     const artistName = text.replace("/artist", "").trim();
     if (artistName) {
-      await handleArtist(chatId, artistName, env);
+      await handleArtist(chatId, artistName, env, messageId);
     } else {
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "Usage: /artist [artist name]\nExample: /artist Kanina"
+          text: "Usage: /artist [artist name]\nExample: /artist Kanina",
+          reply_to_message_id: messageId
         })
       });
     }
@@ -79,14 +83,15 @@ export async function handleMessage(message, env) {
   else if (text.startsWith("/album")) {
     const albumName = text.replace("/album", "").trim();
     if (albumName) {
-      await handleAlbum(chatId, albumName, env);
+      await handleAlbum(chatId, albumName, env, messageId);
     } else {
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "Usage: /album [album name]\nExample: /album Thriller"
+          text: "Usage: /album [album name]\nExample: /album Thriller",
+          reply_to_message_id: messageId
         })
       });
     }
@@ -95,14 +100,15 @@ export async function handleMessage(message, env) {
   else if (text.startsWith("/ep")) {
     const epName = text.replace("/ep", "").trim();
     if (epName) {
-      await handleEp(chatId, epName, env);
+      await handleEp(chatId, epName, env, messageId);
     } else {
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "Usage: /ep [ep name]\nExample: /ep Love Songs"
+          text: "Usage: /ep [ep name]\nExample: /ep Love Songs",
+          reply_to_message_id: messageId
         })
       });
     }
@@ -111,25 +117,25 @@ export async function handleMessage(message, env) {
   else if (text.startsWith("/playlist")) {
     const playlistName = text.replace("/playlist", "").trim();
     if (playlistName) {
-      await handlePlaylist(chatId, playlistName, env);
+      await handlePlaylist(chatId, playlistName, env, messageId);
     } else {
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "Usage: /playlist [playlist name]\nExample: /playlist Top Hits"
+          text: "Usage: /playlist [playlist name]\nExample: /playlist Top Hits",
+          reply_to_message_id: messageId
         })
       });
     }
   }
   // Handle search - any text that doesn't start with /
   else if (text && !text.startsWith("/")) {
-    // Delete search prompt before sending results
     await deleteSearchPrompt(chatId, env);
     await deletePreviousMessage(chatId, env);
     
-    const result = await handleSearch(chatId, text, env);
+    const result = await handleSearch(chatId, text, env, messageId);
     if (result && result.message_id) {
       setLastMessageId(chatId, result.message_id);
     }
@@ -141,7 +147,8 @@ export async function handleMessage(message, env) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "Command not recognized. Try /start, /track, /artist, /album, /ep, or /playlist"
+        text: "Command not recognized. Try /start, /track, /artist, /album, /ep, or /playlist",
+        reply_to_message_id: messageId
       })
     });
   }
