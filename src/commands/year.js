@@ -37,7 +37,7 @@ export async function listYears(chatId, page, env) {
   const totalPages = Math.ceil(totalYears / ITEMS_PER_PAGE);
   
   if (!years.results || years.results.length === 0) {
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -45,7 +45,8 @@ export async function listYears(chatId, page, env) {
         text: "No releases found."
       })
     });
-    return;
+    const data = await response.json();
+    return { message_id: data.result?.message_id };
   }
   
   // Build response
@@ -72,7 +73,7 @@ export async function listYears(chatId, page, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -81,6 +82,9 @@ export async function listYears(chatId, page, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  return { message_id: responseData.result?.message_id };
 }
 
 export async function showYearContent(chatId, year, page, env) {
@@ -169,7 +173,7 @@ export async function showYearContent(chatId, year, page, env) {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
   
   if (allItems.length === 0) {
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -177,7 +181,8 @@ export async function showYearContent(chatId, year, page, env) {
         text: `No releases found for ${year}.`
       })
     });
-    return;
+    const data = await response.json();
+    return { message_id: data.result?.message_id };
   }
   
   // Build response
@@ -208,7 +213,7 @@ export async function showYearContent(chatId, year, page, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -217,4 +222,7 @@ export async function showYearContent(chatId, year, page, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  return { message_id: responseData.result?.message_id };
 }
