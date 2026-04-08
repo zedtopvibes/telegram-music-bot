@@ -1,4 +1,4 @@
-export async function handleArtist(chatId, artistName, env) {
+export async function handleArtist(chatId, artistName, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
@@ -21,13 +21,18 @@ export async function handleArtist(chatId, artistName, env) {
   const artistResult = await env.DB.prepare(artistQuery).bind(searchTerm).first();
   
   if (!artistResult) {
+    const requestBody = {
+      chat_id: chatId,
+      text: `❌ Artist "${artistName}" not found.`
+    };
+    if (replyToMessageId) {
+      requestBody.reply_to_message_id = replyToMessageId;
+    }
+    
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `❌ Artist "${artistName}" not found.`
-      })
+      body: JSON.stringify(requestBody)
     });
     return;
   }
@@ -76,19 +81,23 @@ export async function handleArtist(chatId, artistName, env) {
     responseText += `No tracks found.`;
   }
   
-  responseText += `\nClick a track button to play (coming soon)`;
+  responseText += `\nClick a track button to receive the audio.`;
   
-  const keyboard = {
-    inline_keyboard: buttons
+  const keyboard = { inline_keyboard: buttons };
+  
+  const requestBody = {
+    chat_id: chatId,
+    text: responseText,
+    reply_markup: keyboard
   };
+  
+  if (replyToMessageId) {
+    requestBody.reply_to_message_id = replyToMessageId;
+  }
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: responseText,
-      reply_markup: keyboard
-    })
+    body: JSON.stringify(requestBody)
   });
 }
