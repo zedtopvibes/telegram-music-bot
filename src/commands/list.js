@@ -66,7 +66,7 @@ export async function handleList(chatId, listType, page, env) {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
   
   if (!items.results || items.results.length === 0) {
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -74,7 +74,8 @@ export async function handleList(chatId, listType, page, env) {
         text: `No ${listType} found.`
       })
     });
-    return;
+    const data = await response.json();
+    return { message_id: data.result?.message_id };
   }
   
   // Build response text
@@ -112,7 +113,7 @@ export async function handleList(chatId, listType, page, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -121,4 +122,7 @@ export async function handleList(chatId, listType, page, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  return { message_id: responseData.result?.message_id };
 }
