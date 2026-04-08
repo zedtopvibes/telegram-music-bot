@@ -433,8 +433,7 @@ Need more help? Contact @ZedTopVibes`
         body: JSON.stringify({
           chat_id: chatId,
           text: `📀 @${username}, click below to receive all tracks from this album:`,
-          reply_markup: keyboard,
-          reply_to_message_id: callbackQuery.message.message_id
+          reply_markup: keyboard
         })
       });
     } else {
@@ -482,8 +481,7 @@ Need more help? Contact @ZedTopVibes`
         body: JSON.stringify({
           chat_id: chatId,
           text: `🎵 @${username}, click below to receive all tracks from this EP:`,
-          reply_markup: keyboard,
-          reply_to_message_id: callbackQuery.message.message_id
+          reply_markup: keyboard
         })
       });
     } else {
@@ -531,8 +529,7 @@ Need more help? Contact @ZedTopVibes`
         body: JSON.stringify({
           chat_id: chatId,
           text: `📋 @${username}, click below to receive all tracks from this playlist:`,
-          reply_markup: keyboard,
-          reply_to_message_id: callbackQuery.message.message_id
+          reply_markup: keyboard
         })
       });
     } else {
