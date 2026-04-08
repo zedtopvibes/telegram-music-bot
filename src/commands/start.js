@@ -1,4 +1,4 @@
-export async function handleStart(chatId, firstName, env) {
+export async function handleStart(chatId, firstName, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
@@ -16,7 +16,7 @@ export async function handleStart(chatId, firstName, env) {
       ],
       [
         { text: "📋 Playlists", callback_data: "list_playlists" },
-        { text: "🆕 New Releases", callback_data: "new_releases" }
+        { text: "🆕 New", callback_data: "new_releases" }
       ],
       [
         { text: "📆 By Year", callback_data: "browse_years" },
@@ -28,14 +28,20 @@ export async function handleStart(chatId, firstName, env) {
     ]
   };
   
+  const requestBody = {
+    chat_id: chatId,
+    text: welcomeText,
+    parse_mode: "HTML",
+    reply_markup: keyboard
+  };
+  
+  if (replyToMessageId) {
+    requestBody.reply_to_message_id = replyToMessageId;
+  }
+  
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: welcomeText,
-      parse_mode: "HTML",
-      reply_markup: keyboard
-    })
+    body: JSON.stringify(requestBody)
   });
 }
