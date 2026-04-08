@@ -108,7 +108,7 @@ export async function handleArtist(callbackQuery, env) {
   
   const caption = `👤 ARTIST: ${artist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
   
-  // Send image if available
+  // ALWAYS send image + caption FIRST (even if no tracks)
   if (artist.image_url && artist.image_url !== "" && artist.image_url !== "null") {
     await sendPhotoWithCaption(chatId, artist.image_url, caption, env);
   } else {
@@ -123,25 +123,24 @@ export async function handleArtist(callbackQuery, env) {
     });
   }
   
-  // Send buttons
-  const buttons = [];
-  
-  if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track) => {
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
-    });
-  } else {
+  // THEN check for tracks and send buttons
+  if (!tracks.results || tracks.results.length === 0) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "No tracks found."
+        text: "No tracks found for this artist."
       })
     });
     return;
   }
   
+  // Send buttons
+  const buttons = [];
+  tracks.results.forEach((track) => {
+    buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
+  });
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
@@ -240,7 +239,7 @@ export async function handleAlbum(callbackQuery, env) {
   }
   caption += `🎧 Total Tracks: ${totalTracks}`;
   
-  // Send image if available
+  // ALWAYS send image + caption FIRST (even if no tracks)
   if (album.cover_url && album.cover_url !== "" && album.cover_url !== "null") {
     await sendPhotoWithCaption(chatId, album.cover_url, caption, env);
   } else {
@@ -255,26 +254,25 @@ export async function handleAlbum(callbackQuery, env) {
     });
   }
   
-  // Send buttons
-  const buttons = [];
-  
-  if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track) => {
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
-    });
-    buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
-  } else {
+  // THEN check for tracks and send buttons
+  if (!tracks.results || tracks.results.length === 0) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "No tracks found."
+        text: "No tracks found in this album."
       })
     });
     return;
   }
   
+  // Send buttons
+  const buttons = [];
+  tracks.results.forEach((track) => {
+    buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
+  });
+  buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
@@ -373,7 +371,7 @@ export async function handleEp(callbackQuery, env) {
   }
   caption += `🎧 Total Tracks: ${totalTracks}`;
   
-  // Send image if available
+  // ALWAYS send image + caption FIRST (even if no tracks)
   if (ep.cover_url && ep.cover_url !== "" && ep.cover_url !== "null") {
     await sendPhotoWithCaption(chatId, ep.cover_url, caption, env);
   } else {
@@ -388,26 +386,25 @@ export async function handleEp(callbackQuery, env) {
     });
   }
   
-  // Send buttons
-  const buttons = [];
-  
-  if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track) => {
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
-    });
-    buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
-  } else {
+  // THEN check for tracks and send buttons
+  if (!tracks.results || tracks.results.length === 0) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "No tracks found."
+        text: "No tracks found in this EP."
       })
     });
     return;
   }
   
+  // Send buttons
+  const buttons = [];
+  tracks.results.forEach((track) => {
+    buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
+  });
+  buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
@@ -493,7 +490,7 @@ export async function handlePlaylist(callbackQuery, env) {
   
   const caption = `📋 PLAYLIST: ${playlist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
   
-  // Send image if available
+  // ALWAYS send image + caption FIRST (even if no tracks)
   if (playlist.cover_url && playlist.cover_url !== "" && playlist.cover_url !== "null") {
     await sendPhotoWithCaption(chatId, playlist.cover_url, caption, env);
   } else {
@@ -508,27 +505,26 @@ export async function handlePlaylist(callbackQuery, env) {
     });
   }
   
-  // Send buttons
-  const buttons = [];
-  
-  if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track) => {
-      const displayText = track.artist_name ? `${track.title} - ${track.artist_name}` : track.title;
-      buttons.push([{ text: `🎵 ${displayText.substring(0, 50)}`, callback_data: `track_${track.id}` }]);
-    });
-    buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
-  } else {
+  // THEN check for tracks and send buttons
+  if (!tracks.results || tracks.results.length === 0) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "No tracks found."
+        text: "No tracks found in this playlist."
       })
     });
     return;
   }
   
+  // Send buttons
+  const buttons = [];
+  tracks.results.forEach((track) => {
+    const displayText = track.artist_name ? `${track.title} - ${track.artist_name}` : track.title;
+    buttons.push([{ text: `🎵 ${displayText.substring(0, 50)}`, callback_data: `track_${track.id}` }]);
+  });
+  buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
@@ -605,7 +601,7 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
-  // Send artwork if available
+  // Send artwork if available (ALWAYS try to send)
   if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
     let artworkUrl = track.artwork_url;
     if (!artworkUrl.startsWith("http")) {
