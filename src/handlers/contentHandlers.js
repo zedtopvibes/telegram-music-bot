@@ -12,6 +12,37 @@ async function checkUserSubscription(chatId, env) {
   return { allowed: true };
 }
 
+async function sendPhotoWithCaption(chatId, imageUrl, caption, env) {
+  const BOT_TOKEN = env.BOT_TOKEN;
+  
+  if (!imageUrl || imageUrl === "" || imageUrl === "null") {
+    return null;
+  }
+  
+  // Ensure full URL
+  let fullImageUrl = imageUrl;
+  if (!imageUrl.startsWith("http")) {
+    fullImageUrl = `${CDN_URL}${imageUrl}`;
+  }
+  
+  try {
+    const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: fullImageUrl,
+        caption: caption,
+        parse_mode: "HTML"
+      })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error sending photo:", error);
+    return null;
+  }
+}
+
 export async function handleArtist(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
@@ -45,7 +76,7 @@ export async function handleArtist(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const artistQuery = `
-    SELECT name FROM artists 
+    SELECT name, image_url FROM artists 
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
@@ -75,9 +106,24 @@ export async function handleArtist(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
-  let responseText = `👤 ARTIST: ${artist.name}\n\n`;
-  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
+  const caption = `👤 ARTIST: ${artist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
   
+  // Send image if available
+  if (artist.image_url && artist.image_url !== "" && artist.image_url !== "null") {
+    await sendPhotoWithCaption(chatId, artist.image_url, caption, env);
+  } else {
+    // Send text only if no image
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: caption
+      })
+    });
+  }
+  
+  // Send buttons
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
@@ -85,7 +131,15 @@ export async function handleArtist(callbackQuery, env) {
       buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
     });
   } else {
-    responseText += `No tracks found.`;
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "No tracks found."
+      })
+    });
+    return;
   }
   
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -97,7 +151,7 @@ export async function handleArtist(callbackQuery, env) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText,
+      text: "🎵 Select a track:",
       reply_markup: keyboard
     })
   });
@@ -141,7 +195,7 @@ export async function handleAlbum(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const albumQuery = `
-    SELECT title, release_date FROM albums
+    SELECT title, release_date, cover_url FROM albums
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const album = await env.DB.prepare(albumQuery).bind(albumId).first();
@@ -177,15 +231,31 @@ export async function handleAlbum(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(albumId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
-  let responseText = `💽 ALBUM: ${album.title}\n\n`;
+  let caption = `💽 ALBUM: ${album.title}\n\n`;
   if (artist && artist.name) {
-    responseText += `👤 Artist: ${artist.name}\n`;
+    caption += `👤 Artist: ${artist.name}\n`;
   }
   if (album.release_date) {
-    responseText += `📅 Release: ${album.release_date}\n`;
+    caption += `📅 Release: ${album.release_date}\n`;
   }
-  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
+  caption += `🎧 Total Tracks: ${totalTracks}`;
   
+  // Send image if available
+  if (album.cover_url && album.cover_url !== "" && album.cover_url !== "null") {
+    await sendPhotoWithCaption(chatId, album.cover_url, caption, env);
+  } else {
+    // Send text only if no image
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: caption
+      })
+    });
+  }
+  
+  // Send buttons
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
@@ -194,7 +264,15 @@ export async function handleAlbum(callbackQuery, env) {
     });
     buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
   } else {
-    responseText += `No tracks found.`;
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "No tracks found."
+      })
+    });
+    return;
   }
   
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -206,7 +284,7 @@ export async function handleAlbum(callbackQuery, env) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText,
+      text: "🎵 Select a track:",
       reply_markup: keyboard
     })
   });
@@ -250,7 +328,7 @@ export async function handleEp(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const epQuery = `
-    SELECT title, release_date FROM eps
+    SELECT title, release_date, cover_url FROM eps
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const ep = await env.DB.prepare(epQuery).bind(epId).first();
@@ -286,15 +364,31 @@ export async function handleEp(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(epId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
-  let responseText = `🎵 EP: ${ep.title}\n\n`;
+  let caption = `🎵 EP: ${ep.title}\n\n`;
   if (artist && artist.name) {
-    responseText += `👤 Artist: ${artist.name}\n`;
+    caption += `👤 Artist: ${artist.name}\n`;
   }
   if (ep.release_date) {
-    responseText += `📅 Release: ${ep.release_date}\n`;
+    caption += `📅 Release: ${ep.release_date}\n`;
   }
-  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
+  caption += `🎧 Total Tracks: ${totalTracks}`;
   
+  // Send image if available
+  if (ep.cover_url && ep.cover_url !== "" && ep.cover_url !== "null") {
+    await sendPhotoWithCaption(chatId, ep.cover_url, caption, env);
+  } else {
+    // Send text only if no image
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: caption
+      })
+    });
+  }
+  
+  // Send buttons
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
@@ -303,7 +397,15 @@ export async function handleEp(callbackQuery, env) {
     });
     buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
   } else {
-    responseText += `No tracks found.`;
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "No tracks found."
+      })
+    });
+    return;
   }
   
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -315,7 +417,7 @@ export async function handleEp(callbackQuery, env) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText,
+      text: "🎵 Select a track:",
       reply_markup: keyboard
     })
   });
@@ -359,7 +461,7 @@ export async function handlePlaylist(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const playlistQuery = `
-    SELECT name FROM playlists
+    SELECT name, cover_url FROM playlists
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
@@ -389,9 +491,24 @@ export async function handlePlaylist(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(playlistId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
-  let responseText = `📋 PLAYLIST: ${playlist.name}\n\n`;
-  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
+  const caption = `📋 PLAYLIST: ${playlist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
   
+  // Send image if available
+  if (playlist.cover_url && playlist.cover_url !== "" && playlist.cover_url !== "null") {
+    await sendPhotoWithCaption(chatId, playlist.cover_url, caption, env);
+  } else {
+    // Send text only if no image
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: caption
+      })
+    });
+  }
+  
+  // Send buttons
   const buttons = [];
   
   if (tracks.results && tracks.results.length > 0) {
@@ -401,7 +518,15 @@ export async function handlePlaylist(callbackQuery, env) {
     });
     buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
   } else {
-    responseText += `No tracks found.`;
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "No tracks found."
+      })
+    });
+    return;
   }
   
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -413,7 +538,7 @@ export async function handlePlaylist(callbackQuery, env) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: responseText,
+      text: "🎵 Select a track:",
       reply_markup: keyboard
     })
   });
@@ -455,7 +580,7 @@ export async function handleTrack(callbackQuery, env) {
   });
   
   const trackQuery = `
-    SELECT t.title, t.filename, a.name as artist_name
+    SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
     FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
     LEFT JOIN artists a ON ta.artist_id = a.id
@@ -480,6 +605,25 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
+  // Send artwork if available
+  if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
+    let artworkUrl = track.artwork_url;
+    if (!artworkUrl.startsWith("http")) {
+      artworkUrl = `${CDN_URL}${artworkUrl}`;
+    }
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: artworkUrl,
+        caption: caption
+      })
+    });
+  }
+  
+  // Send audio
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -524,7 +668,7 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   });
   
   const albumQuery = `
-    SELECT title FROM albums WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+    SELECT title, cover_url FROM albums WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const album = await env.DB.prepare(albumQuery).bind(albumId).first();
   
@@ -554,6 +698,24 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   
   const totalTracks = tracks.results.length;
   const albumTitle = album ? album.title : "Album";
+  
+  // Send album cover if available
+  if (album && album.cover_url && album.cover_url !== "" && album.cover_url !== "null") {
+    let coverUrl = album.cover_url;
+    if (!coverUrl.startsWith("http")) {
+      coverUrl = `${CDN_URL}${coverUrl}`;
+    }
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: coverUrl,
+        caption: `📀 Sending album "${albumTitle}"...`
+      })
+    });
+  }
   
   const statusMsg = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
@@ -647,7 +809,7 @@ export async function handleGetAllEp(callbackQuery, env) {
   });
   
   const epQuery = `
-    SELECT title FROM eps WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+    SELECT title, cover_url FROM eps WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const ep = await env.DB.prepare(epQuery).bind(epId).first();
   
@@ -677,6 +839,24 @@ export async function handleGetAllEp(callbackQuery, env) {
   
   const totalTracks = tracks.results.length;
   const epTitle = ep ? ep.title : "EP";
+  
+  // Send EP cover if available
+  if (ep && ep.cover_url && ep.cover_url !== "" && ep.cover_url !== "null") {
+    let coverUrl = ep.cover_url;
+    if (!coverUrl.startsWith("http")) {
+      coverUrl = `${CDN_URL}${coverUrl}`;
+    }
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: coverUrl,
+        caption: `🎵 Sending EP "${epTitle}"...`
+      })
+    });
+  }
   
   const statusMsg = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
@@ -770,7 +950,7 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   });
   
   const playlistQuery = `
-    SELECT name FROM playlists WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+    SELECT name, cover_url FROM playlists WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
   
@@ -800,6 +980,24 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   
   const totalTracks = tracks.results.length;
   const playlistName = playlist ? playlist.name : "Playlist";
+  
+  // Send playlist cover if available
+  if (playlist && playlist.cover_url && playlist.cover_url !== "" && playlist.cover_url !== "null") {
+    let coverUrl = playlist.cover_url;
+    if (!coverUrl.startsWith("http")) {
+      coverUrl = `${CDN_URL}${coverUrl}`;
+    }
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: coverUrl,
+        caption: `📋 Sending playlist "${playlistName}"...`
+      })
+    });
+  }
   
   const statusMsg = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
