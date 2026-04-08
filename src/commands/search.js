@@ -1,4 +1,4 @@
-export async function handleSearch(chatId, query, env) {
+export async function handleSearch(chatId, query, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
@@ -57,13 +57,18 @@ export async function handleSearch(chatId, query, env) {
   }
   
   if (results.length === 0) {
+    const requestBody = {
+      chat_id: chatId,
+      text: `🔍 No results found for "${query}"\n\nTry a different keyword.\n\nOr use /track [keyword] to search for tracks directly.`
+    };
+    if (replyToMessageId) {
+      requestBody.reply_to_message_id = replyToMessageId;
+    }
+    
     const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `🔍 No results found for "${query}"\n\nTry a different keyword.\n\nOr use /track [keyword] to search for tracks directly.`
-      })
+      body: JSON.stringify(requestBody)
     });
     const data = await response.json();
     return { message_id: data.result?.message_id };
@@ -86,16 +91,20 @@ export async function handleSearch(chatId, query, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  const responseText = `🔍 Search results for "${query}":\n\nClick on an item to see details.`;
+  const requestBody = {
+    chat_id: chatId,
+    text: `🔍 Search results for "${query}":\n\nClick on an item to see details.`,
+    reply_markup: keyboard
+  };
+  
+  if (replyToMessageId) {
+    requestBody.reply_to_message_id = replyToMessageId;
+  }
   
   const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: responseText,
-      reply_markup: keyboard
-    })
+    body: JSON.stringify(requestBody)
   });
   
   const responseData = await response.json();
