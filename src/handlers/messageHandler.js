@@ -7,6 +7,7 @@ import { handleAlbum } from "../commands/album.js";
 import { handleEp } from "../commands/ep.js";
 import { handlePlaylist } from "../commands/playlist.js";
 import { checkSubscription } from "../middleware/checkSubscription.js";
+import { deleteSearchPrompt, deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -124,7 +125,14 @@ export async function handleMessage(message, env) {
   }
   // Handle search - any text that doesn't start with /
   else if (text && !text.startsWith("/")) {
-    await handleSearch(chatId, text, env);
+    // Delete search prompt before sending results
+    await deleteSearchPrompt(chatId, env);
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await handleSearch(chatId, text, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
   }
   // Handle unknown commands
   else if (text.startsWith("/")) {
