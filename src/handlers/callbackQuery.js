@@ -1,5 +1,5 @@
 import { handleList } from "../commands/list.js";
-import { listYears, showYearContent } from "../commands/year.js"; 
+import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
@@ -359,19 +359,26 @@ Need more help? Contact @ZedTopVibes`
     });
     
     if (isGroup) {
-      // In group: generate deep link instead of sending audio directly
+      // In group: generate deep link button instead of sending audio directly
       const requestId = `track_${trackId}_${Date.now()}_${chatId}`;
       const username = callbackQuery.from.username || callbackQuery.from.first_name;
       
       storeDeepLink(requestId, callbackQuery.from.id, { type: 'track', id: trackId });
       const deepLink = generateDeepLink(BOT_USERNAME, requestId);
       
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: "🎵 Get Track", url: deepLink }]
+        ]
+      };
+      
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🎵 @${username}, click here to receive your track:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          text: `🎵 @${username}, click below to receive your track:`,
+          reply_markup: keyboard,
           reply_to_message_id: callbackQuery.message.message_id
         })
       });
@@ -404,12 +411,19 @@ Need more help? Contact @ZedTopVibes`
       storeDeepLink(requestId, callbackQuery.from.id, { type: 'getall_album', id: albumId });
       const deepLink = generateDeepLink(BOT_USERNAME, requestId);
       
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: "📀 Get All Tracks", url: deepLink }]
+        ]
+      };
+      
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📀 @${username}, click here to receive all tracks:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          text: `📀 @${username}, click below to receive all tracks from this album:`,
+          reply_markup: keyboard,
           reply_to_message_id: callbackQuery.message.message_id
         })
       });
@@ -436,12 +450,19 @@ Need more help? Contact @ZedTopVibes`
       storeDeepLink(requestId, callbackQuery.from.id, { type: 'getall_ep', id: epId });
       const deepLink = generateDeepLink(BOT_USERNAME, requestId);
       
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: "🎵 Get All Tracks", url: deepLink }]
+        ]
+      };
+      
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🎵 @${username}, click here to receive all tracks:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          text: `🎵 @${username}, click below to receive all tracks from this EP:`,
+          reply_markup: keyboard,
           reply_to_message_id: callbackQuery.message.message_id
         })
       });
@@ -468,12 +489,19 @@ Need more help? Contact @ZedTopVibes`
       storeDeepLink(requestId, callbackQuery.from.id, { type: 'getall_playlist', id: playlistId });
       const deepLink = generateDeepLink(BOT_USERNAME, requestId);
       
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: "📋 Get All Tracks", url: deepLink }]
+        ]
+      };
+      
       await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📋 @${username}, click here to receive all tracks:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          text: `📋 @${username}, click below to receive all tracks from this playlist:`,
+          reply_markup: keyboard,
           reply_to_message_id: callbackQuery.message.message_id
         })
       });
