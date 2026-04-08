@@ -3,7 +3,7 @@ import { handleForceSub } from "./commands/forcesub.js";
 import { handleSearch } from "./commands/search.js";
 import { handleTrack } from "./commands/track.js";
 import { handleArtist } from "./commands/artist.js";
-import { handleAlbum } from "./commands/album.js"; 
+import { handleAlbum } from "./commands/album.js";
 import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { handleList } from "./commands/list.js";
@@ -13,6 +13,7 @@ import { handleCallbackQuery } from "./handlers/callbackQuery.js";
 import { handleMessage } from "./handlers/messageHandler.js";
 import { handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist, handleTrack as handleTrackDirect } from "./handlers/contentHandlers.js";
 import { getDeepLink } from "./utils/deepLinks.js";
+import { checkSubscription } from "./middleware/checkSubscription.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -80,29 +81,92 @@ async function handleUpdate(update, env) {
         return;
       }
       
-      // Process the request based on type
+      // Process the request based on type with subscription check
       if (request.trackData.type === 'track') {
+        // Check subscription before sending
+        const subCheck = await checkSubscription(chatId, env);
+        if (!subCheck.allowed) {
+          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: subCheck.message,
+              reply_markup: subCheck.keyboard
+            })
+          });
+          return;
+        }
+        
         const fakeCallback = {
           id: Date.now().toString(),
           data: `track_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
         await handleTrackDirect(fakeCallback, env);
+        
       } else if (request.trackData.type === 'getall_album') {
+        // Check subscription before sending
+        const subCheck = await checkSubscription(chatId, env);
+        if (!subCheck.allowed) {
+          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: subCheck.message,
+              reply_markup: subCheck.keyboard
+            })
+          });
+          return;
+        }
+        
         const fakeCallback = {
           id: Date.now().toString(),
           data: `getall_album_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
         await handleGetAllAlbum(fakeCallback, env);
+        
       } else if (request.trackData.type === 'getall_ep') {
+        // Check subscription before sending
+        const subCheck = await checkSubscription(chatId, env);
+        if (!subCheck.allowed) {
+          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: subCheck.message,
+              reply_markup: subCheck.keyboard
+            })
+          });
+          return;
+        }
+        
         const fakeCallback = {
           id: Date.now().toString(),
           data: `getall_ep_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
         await handleGetAllEp(fakeCallback, env);
+        
       } else if (request.trackData.type === 'getall_playlist') {
+        // Check subscription before sending
+        const subCheck = await checkSubscription(chatId, env);
+        if (!subCheck.allowed) {
+          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: subCheck.message,
+              reply_markup: subCheck.keyboard
+            })
+          });
+          return;
+        }
+        
         const fakeCallback = {
           id: Date.now().toString(),
           data: `getall_playlist_${request.trackData.id}`,
@@ -117,4 +181,4 @@ async function handleUpdate(update, env) {
     // Handle regular messages
     await handleMessage(update.message, env);
   }
-} 
+}
