@@ -91,7 +91,7 @@ export async function showNewReleases(chatId, page, env) {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
   
   if (allItems.length === 0 || totalItems === 0) {
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -99,7 +99,8 @@ export async function showNewReleases(chatId, page, env) {
         text: "No new releases in the last 30 days."
       })
     });
-    return;
+    const data = await response.json();
+    return { message_id: data.result?.message_id };
   }
   
   // Get items for current page
@@ -148,7 +149,7 @@ export async function showNewReleases(chatId, page, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -157,4 +158,7 @@ export async function showNewReleases(chatId, page, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  return { message_id: responseData.result?.message_id };
 }
