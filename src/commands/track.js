@@ -1,4 +1,4 @@
-export async function handleTrack(chatId, query, env) {
+export async function handleTrack(chatId, query, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
@@ -25,13 +25,18 @@ export async function handleTrack(chatId, query, env) {
     .all();
   
   if (!results.results || results.results.length === 0) {
+    const requestBody = {
+      chat_id: chatId,
+      text: `🔍 No tracks found for "${query}"\n\nTry a different keyword.`
+    };
+    if (replyToMessageId) {
+      requestBody.reply_to_message_id = replyToMessageId;
+    }
+    
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `🔍 No tracks found for "${query}"\n\nTry a different keyword.`
-      })
+      body: JSON.stringify(requestBody)
     });
     return;
   }
@@ -48,19 +53,23 @@ export async function handleTrack(chatId, query, env) {
     buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
   });
   
-  responseText += `\nClick a track button to play (coming soon)`;
+  responseText += `\nClick a track button to receive the audio.`;
   
-  const keyboard = {
-    inline_keyboard: buttons
+  const keyboard = { inline_keyboard: buttons };
+  
+  const requestBody = {
+    chat_id: chatId,
+    text: responseText,
+    reply_markup: keyboard
   };
+  
+  if (replyToMessageId) {
+    requestBody.reply_to_message_id = replyToMessageId;
+  }
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: responseText,
-      reply_markup: keyboard
-    })
+    body: JSON.stringify(requestBody)
   });
 }
