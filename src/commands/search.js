@@ -57,7 +57,7 @@ export async function handleSearch(chatId, query, env) {
   }
   
   if (results.length === 0) {
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -65,7 +65,8 @@ export async function handleSearch(chatId, query, env) {
         text: `🔍 No results found for "${query}"\n\nTry a different keyword.\n\nOr use /track [keyword] to search for tracks directly.`
       })
     });
-    return;
+    const data = await response.json();
+    return { message_id: data.result?.message_id };
   }
   
   // Build inline keyboard buttons
@@ -81,13 +82,13 @@ export async function handleSearch(chatId, query, env) {
     buttons.push([{ text: `${emoji} ${displayName} (${item.type})`, callback_data: `${item.type}_${item.id}` }]);
   });
   
-  const keyboard = {
-    inline_keyboard: buttons
-  };
+  buttons.push([{ text: "❌", callback_data: "delete_message" }]);
+  
+  const keyboard = { inline_keyboard: buttons };
   
   const responseText = `🔍 Search results for "${query}":\n\nClick on an item to see details.`;
   
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -96,4 +97,7 @@ export async function handleSearch(chatId, query, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  return { message_id: responseData.result?.message_id };
 }
