@@ -5,6 +5,7 @@ import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
 import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchPromptId } from "../utils/userState.js";
 import { checkSubscription } from "../middleware/checkSubscription.js";
+import { storeDeepLink, generateDeepLink } from "../utils/deepLinks.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -18,9 +19,12 @@ async function checkUserSubscription(chatId, env) {
 
 export async function handleCallbackQuery(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
+  const BOT_USERNAME = env.BOT_USERNAME;
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
   const messageId = callbackQuery.message.message_id;
+  const chatType = callbackQuery.message.chat.type;
+  const isGroup = chatType === 'group' || chatType === 'supergroup';
   
   // Handle subscription check button (no force sub check needed - it IS the check)
   if (data === "check_subscription") {
@@ -57,24 +61,26 @@ export async function handleCallbackQuery(callbackQuery, env) {
     return;
   }
   
-  // Check subscription for all other buttons
-  const subCheck = await checkUserSubscription(chatId, env);
-  if (!subCheck.allowed) {
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callback_query_id: callbackQuery.id })
-    });
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: subCheck.message,
-        reply_markup: subCheck.keyboard
-      })
-    });
-    return;
+  // For private chats, check subscription
+  if (!isGroup) {
+    const subCheck = await checkUserSubscription(chatId, env);
+    if (!subCheck.allowed) {
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: callbackQuery.id })
+      });
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: subCheck.message,
+          reply_markup: subCheck.keyboard
+        })
+      });
+      return;
+    }
   }
   
   // Handle Search button
@@ -85,10 +91,8 @@ export async function handleCallbackQuery(callbackQuery, env) {
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    // Delete previous search prompt if exists
     await deleteSearchPrompt(chatId, env);
     
-    // Send new search prompt
     const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,7 +117,6 @@ export async function handleCallbackQuery(callbackQuery, env) {
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    // Delete previous help message if exists
     await deletePreviousMessage(chatId, env);
     
     const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
@@ -345,11 +348,146 @@ Need more help? Contact @ZedTopVibes`
     return;
   }
   
-  // Handle content buttons (artist_, album_, ep_, playlist_, track_, getall_)
-  await handleContentButtons(callbackQuery, env);
+  // Handle track button click
+  if (data.startsWith("track_")) {
+    const trackId = data.replace("track_", "");
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    if (isGroup) {
+      // In group: generate deep link instead of sending audio directly
+      const requestId = `track_${trackId}_${Date.now()}_${chatId}`;
+      const username = callbackQuery.from.username || callbackQuery.from.first_name;
+      
+      storeDeepLink(requestId, callbackQuery.from.id, { type: 'track', id: trackId });
+      const deepLink = generateDeepLink(BOT_USERNAME, requestId);
+      
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `🎵 @${username}, click here to receive your track:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          reply_to_message_id: callbackQuery.message.message_id
+        })
+      });
+    } else {
+      // Private chat: send audio directly
+      const fakeCallback = {
+        id: callbackQuery.id,
+        data: `track_${trackId}`,
+        message: { chat: { id: chatId } }
+      };
+      await handleTrack(fakeCallback, env);
+    }
+    return;
+  }
+  
+  // Handle Get All button for Album
+  if (data.startsWith("getall_album_")) {
+    const albumId = data.replace("getall_album_", "");
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    if (isGroup) {
+      const requestId = `getall_album_${albumId}_${Date.now()}_${chatId}`;
+      const username = callbackQuery.from.username || callbackQuery.from.first_name;
+      
+      storeDeepLink(requestId, callbackQuery.from.id, { type: 'getall_album', id: albumId });
+      const deepLink = generateDeepLink(BOT_USERNAME, requestId);
+      
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `📀 @${username}, click here to receive all tracks:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          reply_to_message_id: callbackQuery.message.message_id
+        })
+      });
+    } else {
+      await handleGetAllAlbum(callbackQuery, env);
+    }
+    return;
+  }
+  
+  // Handle Get All button for EP
+  if (data.startsWith("getall_ep_")) {
+    const epId = data.replace("getall_ep_", "");
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    if (isGroup) {
+      const requestId = `getall_ep_${epId}_${Date.now()}_${chatId}`;
+      const username = callbackQuery.from.username || callbackQuery.from.first_name;
+      
+      storeDeepLink(requestId, callbackQuery.from.id, { type: 'getall_ep', id: epId });
+      const deepLink = generateDeepLink(BOT_USERNAME, requestId);
+      
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `🎵 @${username}, click here to receive all tracks:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          reply_to_message_id: callbackQuery.message.message_id
+        })
+      });
+    } else {
+      await handleGetAllEp(callbackQuery, env);
+    }
+    return;
+  }
+  
+  // Handle Get All button for Playlist
+  if (data.startsWith("getall_playlist_")) {
+    const playlistId = data.replace("getall_playlist_", "");
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    if (isGroup) {
+      const requestId = `getall_playlist_${playlistId}_${Date.now()}_${chatId}`;
+      const username = callbackQuery.from.username || callbackQuery.from.first_name;
+      
+      storeDeepLink(requestId, callbackQuery.from.id, { type: 'getall_playlist', id: playlistId });
+      const deepLink = generateDeepLink(BOT_USERNAME, requestId);
+      
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `📋 @${username}, click here to receive all tracks:\n${deepLink}\n\n⏰ This link expires in 10 minutes.`,
+          reply_to_message_id: callbackQuery.message.message_id
+        })
+      });
+    } else {
+      await handleGetAllPlaylist(callbackQuery, env);
+    }
+    return;
+  }
+  
+  // Handle content buttons (artist_, album_, ep_, playlist_)
+  await handleContentButtons(callbackQuery, env, isGroup);
 }
 
-async function handleContentButtons(callbackQuery, env) {
+async function handleContentButtons(callbackQuery, env, isGroup) {
   const data = callbackQuery.data;
   
   if (data.startsWith("artist_")) {
@@ -360,13 +498,5 @@ async function handleContentButtons(callbackQuery, env) {
     await handleEp(callbackQuery, env);
   } else if (data.startsWith("playlist_")) {
     await handlePlaylist(callbackQuery, env);
-  } else if (data.startsWith("track_")) {
-    await handleTrack(callbackQuery, env);
-  } else if (data.startsWith("getall_album_")) {
-    await handleGetAllAlbum(callbackQuery, env);
-  } else if (data.startsWith("getall_ep_")) {
-    await handleGetAllEp(callbackQuery, env);
-  } else if (data.startsWith("getall_playlist_")) {
-    await handleGetAllPlaylist(callbackQuery, env);
   }
 }
