@@ -1,5 +1,5 @@
 import { handleList } from "../commands/list.js";
-import { listYears, showYearContent } from "../commands/year.js";
+import { listYears, showYearContent } from "../commands/year.js"; 
 import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
