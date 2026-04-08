@@ -70,14 +70,41 @@ async function handleUpdate(update, env) {
       
       // Check if user is the requester
       if (request.userId !== chatId) {
-        await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: `⚠️ This request belongs to another user. Please make your own request using /track or search.`
-          })
-        });
+        // For groups, send auto-delete warning message
+        if (isGroup) {
+          const alertMsg = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `⚠️ This request belongs to another user. Please make your own request using /track or search.`,
+              reply_to_message_id: update.message.message_id
+            })
+          });
+          const alertData = await alertMsg.json();
+          
+          // Auto-delete after 5 seconds
+          setTimeout(async () => {
+            await fetch(`${TELEGRAM_API_URL}/deleteMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                message_id: alertData.result.message_id
+              })
+            }).catch(() => {});
+          }, 5000);
+        } else {
+          // Private chat: send normal message
+          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `⚠️ This request belongs to another user. Please make your own request using /track or search.`
+            })
+          });
+        }
         return;
       }
       
