@@ -3,7 +3,7 @@ import { handleForceSub } from "./commands/forcesub.js";
 import { handleSearch } from "./commands/search.js";
 import { handleTrack } from "./commands/track.js";
 import { handleArtist } from "./commands/artist.js";
-import { handleAlbum } from "./commands/album.js";
+import { handleAlbum } from "./commands/album.js"; 
 import { handleEp } from "./commands/ep.js";
 import { handlePlaylist } from "./commands/playlist.js";
 import { handleList } from "./commands/list.js";
