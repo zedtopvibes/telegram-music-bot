@@ -3,6 +3,7 @@ import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
+import { deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -105,7 +106,13 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await showNewReleases(chatId, 1, env);
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await showNewReleases(chatId, 1, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -119,16 +126,12 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId
-      })
-    }).catch(() => {});
+    await deletePreviousMessage(chatId, env);
     
-    await showNewReleases(chatId, page, env);
+    const result = await showNewReleases(chatId, page, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -139,7 +142,13 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await listYears(chatId, 1, env);
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await listYears(chatId, 1, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -153,16 +162,12 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId
-      })
-    }).catch(() => {});
+    await deletePreviousMessage(chatId, env);
     
-    await listYears(chatId, page, env);
+    const result = await listYears(chatId, page, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -178,16 +183,12 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId
-      })
-    }).catch(() => {});
+    await deletePreviousMessage(chatId, env);
     
-    await showYearContent(chatId, year, page, env);
+    const result = await showYearContent(chatId, year, page, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -203,16 +204,12 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId
-      })
-    }).catch(() => {});
+    await deletePreviousMessage(chatId, env);
     
-    await showYearContent(chatId, year, page, env);
+    const result = await showYearContent(chatId, year, page, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -223,7 +220,13 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleList(chatId, "artists", 1, env);
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await handleList(chatId, "artists", 1, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -233,7 +236,13 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleList(chatId, "albums", 1, env);
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await handleList(chatId, "albums", 1, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -243,7 +252,13 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleList(chatId, "eps", 1, env);
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await handleList(chatId, "eps", 1, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -253,7 +268,13 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleList(chatId, "playlists", 1, env);
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await handleList(chatId, "playlists", 1, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
@@ -269,16 +290,12 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId
-      })
-    }).catch(() => {});
+    await deletePreviousMessage(chatId, env);
     
-    await handleList(chatId, listType, page, env);
+    const result = await handleList(chatId, listType, page, env);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
