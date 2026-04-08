@@ -1,16 +1,50 @@
+import { checkSubscription } from "../middleware/checkSubscription.js";
+import { deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
+
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 const CDN_URL = "https://files.zedtopvibes.com";
+
+async function checkUserSubscription(chatId, env) {
+  const subCheck = await checkSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    return { allowed: false, message: subCheck.message, keyboard: subCheck.keyboard };
+  }
+  return { allowed: true };
+}
 
 export async function handleArtist(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
   const artistId = callbackQuery.data.replace("artist_", "");
   
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
+  
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackQuery.id })
   });
+  
+  // Delete previous message
+  await deletePreviousMessage(chatId, env);
   
   const artistQuery = `
     SELECT name, bio, country FROM artists 
@@ -63,7 +97,7 @@ export async function handleArtist(callbackQuery, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -72,6 +106,11 @@ export async function handleArtist(callbackQuery, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  if (responseData.result) {
+    setLastMessageId(chatId, responseData.result.message_id);
+  }
 }
 
 export async function handleAlbum(callbackQuery, env) {
@@ -79,11 +118,33 @@ export async function handleAlbum(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const albumId = callbackQuery.data.replace("album_", "");
   
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
+  
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackQuery.id })
   });
+  
+  await deletePreviousMessage(chatId, env);
   
   const albumQuery = `
     SELECT title, description, release_date, genre, label
@@ -138,7 +199,7 @@ export async function handleAlbum(callbackQuery, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -147,6 +208,11 @@ export async function handleAlbum(callbackQuery, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  if (responseData.result) {
+    setLastMessageId(chatId, responseData.result.message_id);
+  }
 }
 
 export async function handleEp(callbackQuery, env) {
@@ -154,11 +220,33 @@ export async function handleEp(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const epId = callbackQuery.data.replace("ep_", "");
   
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
+  
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackQuery.id })
   });
+  
+  await deletePreviousMessage(chatId, env);
   
   const epQuery = `
     SELECT title, description, release_date, genre, label
@@ -213,7 +301,7 @@ export async function handleEp(callbackQuery, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -222,6 +310,11 @@ export async function handleEp(callbackQuery, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  if (responseData.result) {
+    setLastMessageId(chatId, responseData.result.message_id);
+  }
 }
 
 export async function handlePlaylist(callbackQuery, env) {
@@ -229,11 +322,33 @@ export async function handlePlaylist(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const playlistId = callbackQuery.data.replace("playlist_", "");
   
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
+  
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackQuery.id })
   });
+  
+  await deletePreviousMessage(chatId, env);
   
   const playlistQuery = `
     SELECT name, description
@@ -285,7 +400,7 @@ export async function handlePlaylist(callbackQuery, env) {
   
   const keyboard = { inline_keyboard: buttons };
   
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -294,12 +409,37 @@ export async function handlePlaylist(callbackQuery, env) {
       reply_markup: keyboard
     })
   });
+  
+  const responseData = await response.json();
+  if (responseData.result) {
+    setLastMessageId(chatId, responseData.result.message_id);
+  }
 }
 
 export async function handleTrack(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
   const trackId = callbackQuery.data.replace("track_", "");
+  
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
   
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
@@ -349,6 +489,26 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
   const albumId = callbackQuery.data.replace("getall_album_", "");
+  
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
   
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
@@ -453,6 +613,26 @@ export async function handleGetAllEp(callbackQuery, env) {
   const chatId = callbackQuery.message.chat.id;
   const epId = callbackQuery.data.replace("getall_ep_", "");
   
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
+  
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -555,6 +735,26 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
   const playlistId = callbackQuery.data.replace("getall_playlist_", "");
+  
+  // Check subscription
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
   
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST",
