@@ -133,7 +133,6 @@ export async function handleArtist(callbackQuery, env) {
     return;
   }
   
-  // Artist shows track buttons (no Get All)
   const buttons = [];
   tracks.results.forEach((track) => {
     buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
@@ -215,12 +214,12 @@ export async function handleAlbum(callbackQuery, env) {
   `;
   const artist = await env.DB.prepare(artistQuery).bind(albumId).first();
   
-  const tracksQuery = `
+  const tracksCountQuery = `
     SELECT COUNT(*) as total FROM album_tracks at
     LEFT JOIN tracks t ON at.track_id = t.id
     WHERE at.album_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
   `;
-  const totalTracksResult = await env.DB.prepare(tracksQuery).bind(albumId).first();
+  const totalTracksResult = await env.DB.prepare(tracksCountQuery).bind(albumId).first();
   const totalTracks = totalTracksResult.total || 0;
   
   let caption = `💽 ALBUM: ${album.title}\n\n`;
@@ -257,7 +256,6 @@ export async function handleAlbum(callbackQuery, env) {
     return;
   }
   
-  // Album shows only Get All button (no individual track buttons)
   const buttons = [];
   buttons.push([{ text: "📀 Get All", callback_data: `getall_album_${albumId}` }]);
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -337,12 +335,12 @@ export async function handleEp(callbackQuery, env) {
   `;
   const artist = await env.DB.prepare(artistQuery).bind(epId).first();
   
-  const tracksQuery = `
+  const tracksCountQuery = `
     SELECT COUNT(*) as total FROM ep_tracks et
     LEFT JOIN tracks t ON et.track_id = t.id
     WHERE et.ep_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
   `;
-  const totalTracksResult = await env.DB.prepare(tracksQuery).bind(epId).first();
+  const totalTracksResult = await env.DB.prepare(tracksCountQuery).bind(epId).first();
   const totalTracks = totalTracksResult.total || 0;
   
   let caption = `🎵 EP: ${ep.title}\n\n`;
@@ -379,7 +377,6 @@ export async function handleEp(callbackQuery, env) {
     return;
   }
   
-  // EP shows only Get All button (no individual track buttons)
   const buttons = [];
   buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epId}` }]);
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -452,12 +449,12 @@ export async function handlePlaylist(callbackQuery, env) {
     return;
   }
   
-  const tracksQuery = `
+  const tracksCountQuery = `
     SELECT COUNT(*) as total FROM playlist_tracks pt
     LEFT JOIN tracks t ON pt.track_id = t.id
     WHERE pt.playlist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
   `;
-  const totalTracksResult = await env.DB.prepare(tracksQuery).bind(playlistId).first();
+  const totalTracksResult = await env.DB.prepare(tracksCountQuery).bind(playlistId).first();
   const totalTracks = totalTracksResult.total || 0;
   
   const caption = `📋 PLAYLIST: ${playlist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
@@ -487,7 +484,6 @@ export async function handlePlaylist(callbackQuery, env) {
     return;
   }
   
-  // Playlist shows only Get All button (no individual track buttons)
   const buttons = [];
   buttons.push([{ text: "📀 Get All", callback_data: `getall_playlist_${playlistId}` }]);
   buttons.push([{ text: "❌", callback_data: "delete_message" }]);
@@ -541,7 +537,7 @@ export async function handleTrack(callbackQuery, env) {
   });
   
   const trackQuery = `
-    SELECT t.title, t.filename, a.name as artist_name
+    SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
     FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
     LEFT JOIN artists a ON ta.artist_id = a.id
@@ -566,6 +562,25 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
+  // Send artwork for ALL tracks if available
+  if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
+    let artworkUrl = track.artwork_url;
+    if (!artworkUrl.startsWith("http")) {
+      artworkUrl = `${IMAGE_CDN}${artworkUrl}`;
+    }
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: artworkUrl,
+        caption: caption
+      })
+    });
+  }
+  
+  // Send audio
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
