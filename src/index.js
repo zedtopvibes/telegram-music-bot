@@ -117,4 +117,4 @@ async function handleUpdate(update, env) {
     // Handle regular messages
     await handleMessage(update.message, env);
   }
-}
+} 
