@@ -562,7 +562,7 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
-  // Send artwork for ALL tracks if available
+  // Send artwork if available
   if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
     let artworkUrl = track.artwork_url;
     if (!artworkUrl.startsWith("http")) {
