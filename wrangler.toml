@@ -15,6 +15,6 @@ bucket_name = "zedtopvibes-audio"
 
 # Environment variables (non-secret)
 [vars]
-BOT_USERNAME = "zedtopvibes"
+BOT_USERNAME = "zedtopvibesbot"
 
 # Secrets will be set via dashboard or `wrangler secret put`
