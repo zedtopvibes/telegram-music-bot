@@ -12,37 +12,6 @@ async function checkUserSubscription(chatId, env) {
   return { allowed: true };
 }
 
-async function sendPhotoWithCaption(chatId, imageUrl, caption, env) {
-  const BOT_TOKEN = env.BOT_TOKEN;
-  
-  if (!imageUrl || imageUrl === "" || imageUrl === "null") {
-    return null;
-  }
-  
-  // Ensure full URL
-  let fullImageUrl = imageUrl;
-  if (!imageUrl.startsWith("http")) {
-    fullImageUrl = `${CDN_URL}${imageUrl}`;
-  }
-  
-  try {
-    const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: fullImageUrl,
-        caption: caption,
-        parse_mode: "HTML"
-      })
-    });
-    return await response.json();
-  } catch (error) {
-    console.error("Error sending photo:", error);
-    return null;
-  }
-}
-
 export async function handleArtist(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
@@ -76,7 +45,7 @@ export async function handleArtist(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const artistQuery = `
-    SELECT name, image_url FROM artists 
+    SELECT name FROM artists 
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
@@ -106,22 +75,17 @@ export async function handleArtist(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
+  // Send text caption only (no image)
   const caption = `👤 ARTIST: ${artist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
   
-  // ALWAYS send image + caption FIRST (even if no tracks)
-  if (artist.image_url && artist.image_url !== "" && artist.image_url !== "null") {
-    await sendPhotoWithCaption(chatId, artist.image_url, caption, env);
-  } else {
-    // Send text only if no image
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: caption
-      })
-    });
-  }
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: caption
+    })
+  });
   
   // THEN check for tracks and send buttons
   if (!tracks.results || tracks.results.length === 0) {
@@ -194,7 +158,7 @@ export async function handleAlbum(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const albumQuery = `
-    SELECT title, release_date, cover_url FROM albums
+    SELECT title, release_date FROM albums
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const album = await env.DB.prepare(albumQuery).bind(albumId).first();
@@ -230,6 +194,7 @@ export async function handleAlbum(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(albumId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
+  // Send text caption only (no image)
   let caption = `💽 ALBUM: ${album.title}\n\n`;
   if (artist && artist.name) {
     caption += `👤 Artist: ${artist.name}\n`;
@@ -239,20 +204,14 @@ export async function handleAlbum(callbackQuery, env) {
   }
   caption += `🎧 Total Tracks: ${totalTracks}`;
   
-  // ALWAYS send image + caption FIRST (even if no tracks)
-  if (album.cover_url && album.cover_url !== "" && album.cover_url !== "null") {
-    await sendPhotoWithCaption(chatId, album.cover_url, caption, env);
-  } else {
-    // Send text only if no image
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: caption
-      })
-    });
-  }
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: caption
+    })
+  });
   
   // THEN check for tracks and send buttons
   if (!tracks.results || tracks.results.length === 0) {
@@ -326,7 +285,7 @@ export async function handleEp(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const epQuery = `
-    SELECT title, release_date, cover_url FROM eps
+    SELECT title, release_date FROM eps
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const ep = await env.DB.prepare(epQuery).bind(epId).first();
@@ -362,6 +321,7 @@ export async function handleEp(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(epId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
+  // Send text caption only (no image)
   let caption = `🎵 EP: ${ep.title}\n\n`;
   if (artist && artist.name) {
     caption += `👤 Artist: ${artist.name}\n`;
@@ -371,20 +331,14 @@ export async function handleEp(callbackQuery, env) {
   }
   caption += `🎧 Total Tracks: ${totalTracks}`;
   
-  // ALWAYS send image + caption FIRST (even if no tracks)
-  if (ep.cover_url && ep.cover_url !== "" && ep.cover_url !== "null") {
-    await sendPhotoWithCaption(chatId, ep.cover_url, caption, env);
-  } else {
-    // Send text only if no image
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: caption
-      })
-    });
-  }
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: caption
+    })
+  });
   
   // THEN check for tracks and send buttons
   if (!tracks.results || tracks.results.length === 0) {
@@ -458,7 +412,7 @@ export async function handlePlaylist(callbackQuery, env) {
   await deletePreviousMessage(chatId, env);
   
   const playlistQuery = `
-    SELECT name, cover_url FROM playlists
+    SELECT name FROM playlists
     WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
@@ -488,22 +442,17 @@ export async function handlePlaylist(callbackQuery, env) {
   const tracks = await env.DB.prepare(tracksQuery).bind(playlistId).all();
   const totalTracks = tracks.results ? tracks.results.length : 0;
   
+  // Send text caption only (no image)
   const caption = `📋 PLAYLIST: ${playlist.name}\n\n🎧 Total Tracks: ${totalTracks}`;
   
-  // ALWAYS send image + caption FIRST (even if no tracks)
-  if (playlist.cover_url && playlist.cover_url !== "" && playlist.cover_url !== "null") {
-    await sendPhotoWithCaption(chatId, playlist.cover_url, caption, env);
-  } else {
-    // Send text only if no image
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: caption
-      })
-    });
-  }
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: caption
+    })
+  });
   
   // THEN check for tracks and send buttons
   if (!tracks.results || tracks.results.length === 0) {
@@ -576,7 +525,7 @@ export async function handleTrack(callbackQuery, env) {
   });
   
   const trackQuery = `
-    SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
+    SELECT t.title, t.filename, a.name as artist_name
     FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
     LEFT JOIN artists a ON ta.artist_id = a.id
@@ -601,25 +550,7 @@ export async function handleTrack(callbackQuery, env) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
-  // Send artwork if available (ALWAYS try to send)
-  if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
-    let artworkUrl = track.artwork_url;
-    if (!artworkUrl.startsWith("http")) {
-      artworkUrl = `${CDN_URL}${artworkUrl}`;
-    }
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: artworkUrl,
-        caption: caption
-      })
-    });
-  }
-  
-  // Send audio
+  // Send audio only (no artwork image)
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -664,7 +595,7 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   });
   
   const albumQuery = `
-    SELECT title, cover_url FROM albums WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+    SELECT title FROM albums WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const album = await env.DB.prepare(albumQuery).bind(albumId).first();
   
@@ -694,24 +625,6 @@ export async function handleGetAllAlbum(callbackQuery, env) {
   
   const totalTracks = tracks.results.length;
   const albumTitle = album ? album.title : "Album";
-  
-  // Send album cover if available
-  if (album && album.cover_url && album.cover_url !== "" && album.cover_url !== "null") {
-    let coverUrl = album.cover_url;
-    if (!coverUrl.startsWith("http")) {
-      coverUrl = `${CDN_URL}${coverUrl}`;
-    }
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: coverUrl,
-        caption: `📀 Sending album "${albumTitle}"...`
-      })
-    });
-  }
   
   const statusMsg = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
@@ -805,7 +718,7 @@ export async function handleGetAllEp(callbackQuery, env) {
   });
   
   const epQuery = `
-    SELECT title, cover_url FROM eps WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+    SELECT title FROM eps WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const ep = await env.DB.prepare(epQuery).bind(epId).first();
   
@@ -835,24 +748,6 @@ export async function handleGetAllEp(callbackQuery, env) {
   
   const totalTracks = tracks.results.length;
   const epTitle = ep ? ep.title : "EP";
-  
-  // Send EP cover if available
-  if (ep && ep.cover_url && ep.cover_url !== "" && ep.cover_url !== "null") {
-    let coverUrl = ep.cover_url;
-    if (!coverUrl.startsWith("http")) {
-      coverUrl = `${CDN_URL}${coverUrl}`;
-    }
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: coverUrl,
-        caption: `🎵 Sending EP "${epTitle}"...`
-      })
-    });
-  }
   
   const statusMsg = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
@@ -946,7 +841,7 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   });
   
   const playlistQuery = `
-    SELECT name, cover_url FROM playlists WHERE id = ? AND deleted_at IS NULL AND status = 'published'
+    SELECT name FROM playlists WHERE id = ? AND deleted_at IS NULL AND status = 'published'
   `;
   const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
   
@@ -976,24 +871,6 @@ export async function handleGetAllPlaylist(callbackQuery, env) {
   
   const totalTracks = tracks.results.length;
   const playlistName = playlist ? playlist.name : "Playlist";
-  
-  // Send playlist cover if available
-  if (playlist && playlist.cover_url && playlist.cover_url !== "" && playlist.cover_url !== "null") {
-    let coverUrl = playlist.cover_url;
-    if (!coverUrl.startsWith("http")) {
-      coverUrl = `${CDN_URL}${coverUrl}`;
-    }
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: coverUrl,
-        caption: `📋 Sending playlist "${playlistName}"...`
-      })
-    });
-  }
   
   const statusMsg = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
     method: "POST",
