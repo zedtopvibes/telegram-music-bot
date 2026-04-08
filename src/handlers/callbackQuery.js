@@ -404,6 +404,16 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
+    // Delete the "🎵 Select a track:" message that contains the track buttons and Get All button
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId
+      })
+    }).catch(() => {});
+    
     if (isGroup) {
       const requestId = `getall_album_${albumId}_${Date.now()}_${chatId}`;
       const username = callbackQuery.from.username || callbackQuery.from.first_name;
@@ -443,6 +453,16 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
+    // Delete the "🎵 Select a track:" message that contains the track buttons and Get All button
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId
+      })
+    }).catch(() => {});
+    
     if (isGroup) {
       const requestId = `getall_ep_${epId}_${Date.now()}_${chatId}`;
       const username = callbackQuery.from.username || callbackQuery.from.first_name;
@@ -481,6 +501,16 @@ Need more help? Contact @ZedTopVibes`
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
+    
+    // Delete the "🎵 Select a track:" message that contains the track buttons and Get All button
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId
+      })
+    }).catch(() => {});
     
     if (isGroup) {
       const requestId = `getall_playlist_${playlistId}_${Date.now()}_${chatId}`;
