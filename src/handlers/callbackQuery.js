@@ -3,7 +3,7 @@ import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
-import { deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
+import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchPromptId } from "../utils/userState.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -48,7 +48,7 @@ export async function handleCallbackQuery(callbackQuery, env) {
     return;
   }
   
-  // Handle Search button
+  // Handle Search button - delete previous search prompt
   if (data === "search") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -56,7 +56,11 @@ export async function handleCallbackQuery(callbackQuery, env) {
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+    // Delete previous search prompt if exists
+    await deleteSearchPrompt(chatId, env);
+    
+    // Send new search prompt
+    const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -64,10 +68,15 @@ export async function handleCallbackQuery(callbackQuery, env) {
         text: "🔍 Send me a song name, artist, album, EP, or playlist name to search."
       })
     });
+    
+    const responseData = await response.json();
+    if (responseData.result) {
+      setSearchPromptId(chatId, responseData.result.message_id);
+    }
     return;
   }
   
-  // Handle Help button
+  // Handle Help button - delete previous help message
   if (data === "help") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -75,7 +84,10 @@ export async function handleCallbackQuery(callbackQuery, env) {
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+    // Delete previous help message if exists
+    await deletePreviousMessage(chatId, env);
+    
+    const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -96,6 +108,11 @@ Click buttons below to browse all content.
 Need more help? Contact @ZedTopVibes`
       })
     });
+    
+    const responseData = await response.json();
+    if (responseData.result) {
+      setLastMessageId(chatId, responseData.result.message_id);
+    }
     return;
   }
   
