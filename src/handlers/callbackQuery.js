@@ -4,8 +4,17 @@ import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
 import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchPromptId } from "../utils/userState.js";
+import { checkSubscription } from "../middleware/checkSubscription.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
+
+async function checkUserSubscription(chatId, env) {
+  const subCheck = await checkSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    return { allowed: false, message: subCheck.message, keyboard: subCheck.keyboard };
+  }
+  return { allowed: true };
+}
 
 export async function handleCallbackQuery(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
@@ -13,13 +22,13 @@ export async function handleCallbackQuery(callbackQuery, env) {
   const data = callbackQuery.data;
   const messageId = callbackQuery.message.message_id;
   
-  // Handle subscription check button
+  // Handle subscription check button (no force sub check needed - it IS the check)
   if (data === "check_subscription") {
     await handleSubscriptionCheck(callbackQuery, env);
     return;
   }
   
-  // Handle Delete Message button
+  // Handle Delete Message button (no force sub check needed - just cleanup)
   if (data === "delete_message") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -38,7 +47,7 @@ export async function handleCallbackQuery(callbackQuery, env) {
     return;
   }
   
-  // Handle noop (do nothing)
+  // Handle noop (do nothing) - no force sub check needed
   if (data === "noop") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -48,7 +57,27 @@ export async function handleCallbackQuery(callbackQuery, env) {
     return;
   }
   
-  // Handle Search button - delete previous search prompt
+  // Check subscription for all other buttons
+  const subCheck = await checkUserSubscription(chatId, env);
+  if (!subCheck.allowed) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: subCheck.message,
+        reply_markup: subCheck.keyboard
+      })
+    });
+    return;
+  }
+  
+  // Handle Search button
   if (data === "search") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -76,7 +105,7 @@ export async function handleCallbackQuery(callbackQuery, env) {
     return;
   }
   
-  // Handle Help button - delete previous help message
+  // Handle Help button
   if (data === "help") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
