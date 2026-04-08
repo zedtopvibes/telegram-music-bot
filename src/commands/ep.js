@@ -1,4 +1,4 @@
-export async function handleEp(chatId, epName, env) {
+export async function handleEp(chatId, epName, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
@@ -10,7 +10,8 @@ export async function handleEp(chatId, epName, env) {
       description,
       release_date,
       genre,
-      label
+      label,
+      cover_url
     FROM eps
     WHERE title LIKE ?
       AND deleted_at IS NULL
@@ -22,80 +23,73 @@ export async function handleEp(chatId, epName, env) {
   const epResult = await env.DB.prepare(epQuery).bind(searchTerm).first();
   
   if (!epResult) {
+    const requestBody = {
+      chat_id: chatId,
+      text: `❌ EP "${epName}" not found.`
+    };
+    if (replyToMessageId) {
+      requestBody.reply_to_message_id = replyToMessageId;
+    }
+    
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `❌ EP "${epName}" not found.`
-      })
+      body: JSON.stringify(requestBody)
     });
     return;
   }
   
-  // Get tracks in this EP
-  const tracksQuery = `
-    SELECT 
-      t.id,
-      t.title,
-      et.track_number
-    FROM ep_tracks et
-    LEFT JOIN tracks t ON et.track_id = t.id
-    WHERE et.ep_id = ?
-      AND t.deleted_at IS NULL
-      AND t.status = 'published'
-    ORDER BY et.track_number, et.disc_number
+  // Get artist name for this EP
+  const artistQuery = `
+    SELECT a.name FROM artists a
+    LEFT JOIN eps e ON e.artist_id = a.id
+    WHERE e.id = ? AND a.deleted_at IS NULL AND a.status = 'published'
   `;
+  const artist = await env.DB.prepare(artistQuery).bind(epResult.id).first();
   
-  const tracksResult = await env.DB.prepare(tracksQuery).bind(epResult.id).all();
+  const tracksCountQuery = `
+    SELECT COUNT(*) as total FROM ep_tracks et
+    LEFT JOIN tracks t ON et.track_id = t.id
+    WHERE et.ep_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+  `;
+  const totalTracksResult = await env.DB.prepare(tracksCountQuery).bind(epResult.id).first();
+  const totalTracks = totalTracksResult.total || 0;
   
-  // Build response message
   let responseText = `🎵 EP: ${epResult.title}\n\n`;
-  
-  if (epResult.description) {
-    responseText += `${epResult.description}\n\n`;
+  if (artist && artist.name) {
+    responseText += `👤 Artist: ${artist.name}\n`;
   }
-  
   if (epResult.release_date) {
     responseText += `📅 Release: ${epResult.release_date}\n`;
   }
-  
   if (epResult.genre) {
     responseText += `🎸 Genre: ${epResult.genre}\n`;
   }
-  
   if (epResult.label) {
     responseText += `🏷️ Label: ${epResult.label}\n`;
   }
+  responseText += `🎧 Total Tracks: ${totalTracks}\n\n`;
   
-  responseText += `\n🎵 Tracklist:\n\n`;
-  
-  // Build inline keyboard buttons for tracks
+  // EP shows only Get All button (no individual track buttons)
   const buttons = [];
+  buttons.push([{ text: "📀 Get All", callback_data: `getall_ep_${epResult.id}` }]);
+  buttons.push([{ text: "❌", callback_data: "delete_message" }]);
   
-  if (tracksResult.results && tracksResult.results.length > 0) {
-    tracksResult.results.forEach((track, index) => {
-      const number = index + 1;
-      responseText += `${number}. ${track.title}\n`;
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
-    });
-  } else {
-    responseText += `No tracks found.`;
-  }
+  const keyboard = { inline_keyboard: buttons };
   
-  responseText += `\nClick a track button to play (coming soon)`;
-  
-  const keyboard = {
-    inline_keyboard: buttons
+  const requestBody = {
+    chat_id: chatId,
+    text: responseText,
+    reply_markup: keyboard
   };
+  
+  if (replyToMessageId) {
+    requestBody.reply_to_message_id = replyToMessageId;
+  }
   
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: responseText,
-      reply_markup: keyboard
-    })
+    body: JSON.stringify(requestBody)
   });
 }
