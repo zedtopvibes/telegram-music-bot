@@ -6,6 +6,7 @@ import { handleArtist } from "../commands/artist.js";
 import { handleAlbum } from "../commands/album.js";
 import { handleEp } from "../commands/ep.js";
 import { handlePlaylist } from "../commands/playlist.js";
+import { handleStats } from "../commands/stats.js";
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { deleteSearchPrompt, deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
 
