@@ -18,7 +18,7 @@ async function checkUserSubscription(chatId, env) {
   return { allowed: true };
 }
 
-export async function handleCallbackQuery(callbackQuery, env) {
+export async function handleCallbackQuery(callbackQuery, env, ctx) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const BOT_USERNAME = env.BOT_USERNAME;
   const chatId = callbackQuery.message.chat.id;
@@ -27,13 +27,11 @@ export async function handleCallbackQuery(callbackQuery, env) {
   const chatType = callbackQuery.message.chat.type;
   const isGroup = chatType === 'group' || chatType === 'supergroup';
   
-  // Handle subscription check button (no force sub check needed - it IS the check)
   if (data === "check_subscription") {
     await handleSubscriptionCheck(callbackQuery, env);
     return;
   }
   
-  // Handle Delete Message button (no force sub check needed - just cleanup)
   if (data === "delete_message") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -52,7 +50,6 @@ export async function handleCallbackQuery(callbackQuery, env) {
     return;
   }
   
-  // Handle noop (do nothing) - no force sub check needed
   if (data === "noop") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
@@ -360,7 +357,6 @@ Need more help? Contact @ZedTopVibes`
     });
     
     if (isGroup) {
-      // First, get track details for artwork
       const trackQuery = `
         SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
         FROM tracks t
@@ -372,7 +368,6 @@ Need more help? Contact @ZedTopVibes`
       const track = await env.DB.prepare(trackQuery).bind(trackId).first();
       
       if (track && track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
-        // Send artwork in group
         let artworkUrl = track.artwork_url;
         if (!artworkUrl.startsWith("http")) {
           artworkUrl = `${IMAGE_CDN}${artworkUrl}`;
@@ -393,7 +388,6 @@ Need more help? Contact @ZedTopVibes`
         });
       }
       
-      // Generate deep link button
       const requestId = `track_${trackId}_${Date.now()}_${chatId}`;
       const username = callbackQuery.from.username || callbackQuery.from.first_name;
       
@@ -417,13 +411,12 @@ Need more help? Contact @ZedTopVibes`
         })
       });
     } else {
-      // Private chat: send audio directly
       const fakeCallback = {
         id: callbackQuery.id,
         data: `track_${trackId}`,
         message: { chat: { id: chatId } }
       };
-      await handleTrack(fakeCallback, env);
+      await handleTrack(fakeCallback, env, ctx);
     }
     return;
   }
@@ -438,7 +431,6 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    // Delete the "🎵 Select a track:" message that contains the track buttons and Get All button
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -471,7 +463,7 @@ Need more help? Contact @ZedTopVibes`
         })
       });
     } else {
-      await handleGetAllAlbum(callbackQuery, env);
+      await handleGetAllAlbum(callbackQuery, env, ctx);
     }
     return;
   }
@@ -486,7 +478,6 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    // Delete the "🎵 Select a track:" message that contains the track buttons and Get All button
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -519,7 +510,7 @@ Need more help? Contact @ZedTopVibes`
         })
       });
     } else {
-      await handleGetAllEp(callbackQuery, env);
+      await handleGetAllEp(callbackQuery, env, ctx);
     }
     return;
   }
@@ -534,7 +525,6 @@ Need more help? Contact @ZedTopVibes`
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    // Delete the "🎵 Select a track:" message that contains the track buttons and Get All button
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -567,16 +557,16 @@ Need more help? Contact @ZedTopVibes`
         })
       });
     } else {
-      await handleGetAllPlaylist(callbackQuery, env);
+      await handleGetAllPlaylist(callbackQuery, env, ctx);
     }
     return;
   }
   
   // Handle content buttons (artist_, album_, ep_, playlist_)
-  await handleContentButtons(callbackQuery, env, isGroup);
+  await handleContentButtons(callbackQuery, env, ctx, isGroup);
 }
 
-async function handleContentButtons(callbackQuery, env, isGroup) {
+async function handleContentButtons(callbackQuery, env, ctx, isGroup) {
   const data = callbackQuery.data;
   
   if (data.startsWith("artist_")) {
