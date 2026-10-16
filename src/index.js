@@ -9,6 +9,7 @@ import { handlePlaylist } from "./commands/playlist.js";
 import { handleList } from "./commands/list.js";
 import { listYears, showYearContent } from "./commands/year.js";
 import { showNewReleases } from "./commands/newreleases.js";
+import { handleStats } from "./commands/stats.js";
 import { handleCallbackQuery } from "./handlers/callbackQuery.js";
 import { handleMessage } from "./handlers/messageHandler.js";
 import { handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist, handleTrack as handleTrackDirect } from "./handlers/contentHandlers.js";
@@ -26,18 +27,14 @@ async function setupBotMenu(env) {
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
   try {
-    // 1. Set menu button to show commands
     await fetch(`${TELEGRAM_API_URL}/setChatMenuButton`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        menu_button: {
-          type: "commands"
-        }
+        menu_button: { type: "commands" }
       })
     });
     
-    // 2. Set bot commands (only start and help)
     await fetch(`${TELEGRAM_API_URL}/setMyCommands`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,17 +60,15 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     
-    // Setup endpoint (call once to configure menu)
     if (url.pathname === "/setup") {
       await setupBotMenu(env);
       return new Response("Menu setup complete", { status: 200 });
     }
     
-    // Webhook endpoint
     if (request.method === "POST" && url.pathname === "/webhook") {
       try {
         const update = await request.json();
-        ctx.waitUntil(handleUpdate(update, env));
+        ctx.waitUntil(handleUpdate(update, env, ctx));
         return new Response("OK", { status: 200 });
       } catch (error) {
         console.error("Webhook error:", error);
@@ -81,7 +76,6 @@ export default {
       }
     }
     
-    // Health check
     if (request.method === "GET" && url.pathname === "/health") {
       return new Response("Bot is running!", { status: 200 });
     }
@@ -91,16 +85,16 @@ export default {
 };
 
 // ==========================================
-// UPDATE HANDLER (UNCHANGED - Your Working Code)
+// UPDATE HANDLER
 // ==========================================
 
-async function handleUpdate(update, env) {
+async function handleUpdate(update, env, ctx) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
   // Handle callback queries (button clicks)
   if (update.callback_query) {
-    await handleCallbackQuery(update.callback_query, env);
+    await handleCallbackQuery(update.callback_query, env, ctx);
     return;
   }
   
@@ -130,7 +124,6 @@ async function handleUpdate(update, env) {
       
       // Check if user is the requester
       if (request.userId !== chatId) {
-        // For groups, send auto-delete warning message
         if (isGroup) {
           const alertMsg = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
             method: "POST",
@@ -143,7 +136,6 @@ async function handleUpdate(update, env) {
           });
           const alertData = await alertMsg.json();
           
-          // Auto-delete after 5 seconds
           setTimeout(async () => {
             await fetch(`${TELEGRAM_API_URL}/deleteMessage`, {
               method: "POST",
@@ -155,7 +147,6 @@ async function handleUpdate(update, env) {
             }).catch(() => {});
           }, 5000);
         } else {
-          // Private chat: send normal message
           await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -170,7 +161,6 @@ async function handleUpdate(update, env) {
       
       // Process the request based on type with subscription check
       if (request.trackData.type === 'track') {
-        // Check subscription before sending
         const subCheck = await checkSubscription(chatId, env);
         if (!subCheck.allowed) {
           await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -190,10 +180,9 @@ async function handleUpdate(update, env) {
           data: `track_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
-        await handleTrackDirect(fakeCallback, env);
+        await handleTrackDirect(fakeCallback, env, ctx);
         
       } else if (request.trackData.type === 'getall_album') {
-        // Check subscription before sending
         const subCheck = await checkSubscription(chatId, env);
         if (!subCheck.allowed) {
           await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -213,10 +202,9 @@ async function handleUpdate(update, env) {
           data: `getall_album_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
-        await handleGetAllAlbum(fakeCallback, env);
+        await handleGetAllAlbum(fakeCallback, env, ctx);
         
       } else if (request.trackData.type === 'getall_ep') {
-        // Check subscription before sending
         const subCheck = await checkSubscription(chatId, env);
         if (!subCheck.allowed) {
           await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -236,10 +224,9 @@ async function handleUpdate(update, env) {
           data: `getall_ep_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
-        await handleGetAllEp(fakeCallback, env);
+        await handleGetAllEp(fakeCallback, env, ctx);
         
       } else if (request.trackData.type === 'getall_playlist') {
-        // Check subscription before sending
         const subCheck = await checkSubscription(chatId, env);
         if (!subCheck.allowed) {
           await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -259,13 +246,13 @@ async function handleUpdate(update, env) {
           data: `getall_playlist_${request.trackData.id}`,
           message: { chat: { id: chatId } }
         };
-        await handleGetAllPlaylist(fakeCallback, env);
+        await handleGetAllPlaylist(fakeCallback, env, ctx);
       }
       
       return;
     }
     
     // Handle regular messages
-    await handleMessage(update.message, env);
+    await handleMessage(update.message, env, ctx);
   }
 }
