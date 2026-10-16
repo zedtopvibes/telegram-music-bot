@@ -25,6 +25,12 @@ export async function handleMessage(message, env) {
     return;
   }
   
+  // Skip force sub check for /stats command (admin only)
+  if (text === "/stats") {
+    await handleStats(chatId, env, messageId);
+    return;
+  }
+  
   // Check subscription for all other commands
   const subCheck = await checkSubscription(chatId, env);
   
@@ -131,12 +137,10 @@ export async function handleMessage(message, env) {
       });
     }
   }
-
-// Handle /stats command (admin only)
-else if (text === "/stats") {
-  await handleStats(chatId, env);
-}
-
+  // Handle /stats command (admin only) - fallback safety
+  else if (text === "/stats") {
+    await handleStats(chatId, env, messageId);
+  }
   // Handle search - any text that doesn't start with /
   else if (text && !text.startsWith("/")) {
     await deleteSearchPrompt(chatId, env);
