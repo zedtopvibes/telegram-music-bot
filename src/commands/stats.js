@@ -1,10 +1,24 @@
-export async function handleStats(chatId, env) {
+export async function handleStats(chatId, env, messageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   const ADMIN_ID = env.ADMIN_ID;
   
   // Admin only check
   if (chatId.toString() !== ADMIN_ID) {
+    const errorBody = {
+      chat_id: chatId,
+      text: "❌ You are not authorized to use this command."
+    };
+    
+    if (messageId) {
+      errorBody.reply_to_message_id = messageId;
+    }
+    
+    await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(errorBody)
+    });
     return;
   }
   
@@ -126,25 +140,38 @@ ${yearList}
 ├─ Explicit: ${explicitCount.c}
 └─ Clean: ${cleanCount.c}`;
     
+    const successBody = {
+      chat_id: chatId,
+      text: statsText,
+      parse_mode: "HTML"
+    };
+    
+    if (messageId) {
+      successBody.reply_to_message_id = messageId;
+    }
+    
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: statsText,
-        parse_mode: "HTML"
-      })
+      body: JSON.stringify(successBody)
     });
     
   } catch (error) {
     console.error("Stats error:", error);
+    
+    const errorBody = {
+      chat_id: chatId,
+      text: "❌ Error fetching stats. Please try again."
+    };
+    
+    if (messageId) {
+      errorBody.reply_to_message_id = messageId;
+    }
+    
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "❌ Error fetching stats. Please try again."
-      })
+      body: JSON.stringify(errorBody)
     });
   }
 }
