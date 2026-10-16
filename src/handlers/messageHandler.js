@@ -131,6 +131,12 @@ export async function handleMessage(message, env) {
       });
     }
   }
+
+// Handle /stats command (admin only)
+else if (text === "/stats") {
+  await handleStats(chatId, env);
+}
+
   // Handle search - any text that doesn't start with /
   else if (text && !text.startsWith("/")) {
     await deleteSearchPrompt(chatId, env);
