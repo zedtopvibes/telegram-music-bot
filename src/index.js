@@ -17,9 +17,60 @@ import { checkSubscription } from "./middleware/checkSubscription.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
+// ==========================================
+// BOT SETUP (Menu Button + Commands)
+// ==========================================
+
+async function setupBotMenu(env) {
+  const BOT_TOKEN = env.BOT_TOKEN;
+  const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
+  
+  try {
+    // 1. Set menu button to show commands
+    await fetch(`${TELEGRAM_API_URL}/setChatMenuButton`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        menu_button: {
+          type: "commands"
+        }
+      })
+    });
+    
+    // 2. Set bot commands (only start and help)
+    await fetch(`${TELEGRAM_API_URL}/setMyCommands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        commands: [
+          { command: "start", description: "🏠 Main menu" },
+          { command: "help", description: "❓ Help" }
+        ]
+      })
+    });
+    
+    console.log("Bot menu setup complete");
+  } catch (error) {
+    console.error("Menu setup error:", error);
+  }
+}
+
+// ==========================================
+// MAIN WORKER
+// ==========================================
+
 export default {
   async fetch(request, env, ctx) {
-    if (request.method === "POST" && new URL(request.url).pathname === "/webhook") {
+    const url = new URL(request.url);
+    
+    // Setup endpoint (call once to configure menu)
+    if (url.pathname === "/setup") {
+      await setupBotMenu(env);
+      return new Response("Menu setup complete", { status: 200 });
+    }
+    
+    // Webhook endpoint
+    if (request.method === "POST" && url.pathname === "/webhook") {
       try {
         const update = await request.json();
         ctx.waitUntil(handleUpdate(update, env));
@@ -30,9 +81,18 @@ export default {
       }
     }
     
+    // Health check
+    if (request.method === "GET" && url.pathname === "/health") {
+      return new Response("Bot is running!", { status: 200 });
+    }
+    
     return new Response("Not found", { status: 404 });
   },
 };
+
+// ==========================================
+// UPDATE HANDLER (UNCHANGED - Your Working Code)
+// ==========================================
 
 async function handleUpdate(update, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
