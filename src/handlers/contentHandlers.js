@@ -537,7 +537,7 @@ export async function handleTrack(callbackQuery, env, ctx) {
   });
   
   const trackQuery = `
-    SELECT t.id, t.title, t.filename, t.artwork_url, t.artist_id, a.name as artist_name
+    SELECT t.title, t.filename, t.artwork_url, a.name as artist_name
     FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
     LEFT JOIN artists a ON ta.artist_id = a.id
@@ -594,15 +594,21 @@ export async function handleTrack(callbackQuery, env, ctx) {
   });
   
   // TRACK DOWNLOAD (background, no delay)
+  const artistLinks = await env.DB.prepare(
+    "SELECT DISTINCT artist_id FROM track_artists WHERE track_id = ?"
+  ).bind(trackId).all();
+  
+  const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
+  
   const updates = [
     env.DB.prepare("UPDATE tracks SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(trackId)
   ];
   
-  if (track.artist_id) {
+  artistIds.forEach(id => {
     updates.push(
-      env.DB.prepare("UPDATE artists SET bot_total_downloads = bot_total_downloads + 1 WHERE id = ?").bind(track.artist_id)
+      env.DB.prepare("UPDATE artists SET bot_total_downloads = bot_total_downloads + 1 WHERE id = ?").bind(id)
     );
-  }
+  });
   
   ctx.waitUntil(env.DB.batch(updates));
 }
@@ -643,7 +649,7 @@ export async function handleGetAllAlbum(callbackQuery, env, ctx) {
   const album = await env.DB.prepare(albumQuery).bind(albumId).first();
   
   const tracksQuery = `
-    SELECT t.id, t.title, t.filename, t.artist_id, a.name as artist_name
+    SELECT t.id, t.title, t.filename, a.name as artist_name
     FROM album_tracks at
     LEFT JOIN tracks t ON at.track_id = t.id
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
@@ -748,7 +754,14 @@ export async function handleGetAllAlbum(callbackQuery, env, ctx) {
   
   // ALBUM DOWNLOAD TRACKING (background)
   const trackIds = tracks.results.map(t => t.id);
-  const artistIds = [...new Set(tracks.results.map(t => t.artist_id).filter(Boolean))];
+  
+  // Fetch artists via junction table
+  const placeholders = trackIds.map(() => '?').join(',');
+  const artistLinks = await env.DB.prepare(
+    `SELECT DISTINCT artist_id FROM track_artists WHERE track_id IN (${placeholders})`
+  ).bind(...trackIds).all();
+  
+  const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
     env.DB.prepare("UPDATE albums SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(albumId)
@@ -805,7 +818,7 @@ export async function handleGetAllEp(callbackQuery, env, ctx) {
   const ep = await env.DB.prepare(epQuery).bind(epId).first();
   
   const tracksQuery = `
-    SELECT t.id, t.title, t.filename, t.artist_id, a.name as artist_name
+    SELECT t.id, t.title, t.filename, a.name as artist_name
     FROM ep_tracks et
     LEFT JOIN tracks t ON et.track_id = t.id
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
@@ -910,7 +923,13 @@ export async function handleGetAllEp(callbackQuery, env, ctx) {
   
   // EP DOWNLOAD TRACKING (background)
   const trackIds = tracks.results.map(t => t.id);
-  const artistIds = [...new Set(tracks.results.map(t => t.artist_id).filter(Boolean))];
+  
+  const placeholders = trackIds.map(() => '?').join(',');
+  const artistLinks = await env.DB.prepare(
+    `SELECT DISTINCT artist_id FROM track_artists WHERE track_id IN (${placeholders})`
+  ).bind(...trackIds).all();
+  
+  const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
     env.DB.prepare("UPDATE eps SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(epId)
@@ -967,7 +986,7 @@ export async function handleGetAllPlaylist(callbackQuery, env, ctx) {
   const playlist = await env.DB.prepare(playlistQuery).bind(playlistId).first();
   
   const tracksQuery = `
-    SELECT t.id, t.title, t.filename, t.artist_id, a.name as artist_name
+    SELECT t.id, t.title, t.filename, a.name as artist_name
     FROM playlist_tracks pt
     LEFT JOIN tracks t ON pt.track_id = t.id
     LEFT JOIN track_artists ta ON t.id = ta.track_id AND ta.is_primary = 1
@@ -1072,7 +1091,13 @@ export async function handleGetAllPlaylist(callbackQuery, env, ctx) {
   
   // PLAYLIST DOWNLOAD TRACKING (background)
   const trackIds = tracks.results.map(t => t.id);
-  const artistIds = [...new Set(tracks.results.map(t => t.artist_id).filter(Boolean))];
+  
+  const placeholders = trackIds.map(() => '?').join(',');
+  const artistLinks = await env.DB.prepare(
+    `SELECT DISTINCT artist_id FROM track_artists WHERE track_id IN (${placeholders})`
+  ).bind(...trackIds).all();
+  
+  const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
     env.DB.prepare("UPDATE playlists SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(playlistId)
