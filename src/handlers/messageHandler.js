@@ -7,12 +7,16 @@ import { handleAlbum } from "../commands/album.js";
 import { handleEp } from "../commands/ep.js";
 import { handlePlaylist } from "../commands/playlist.js";
 import { handleStats } from "../commands/stats.js";
+import { trackUser } from "../utils/userTracker.js"; // 👈 NEW
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { deleteSearchPrompt, deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
-export async function handleMessage(message, env) {
+export async function handleMessage(message, env, ctx) {
+  // 👈 TRACK USER AT THE VERY START
+  await trackUser(message.from, ctx, env);
+
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = message.chat.id;
   const text = message.text || "";
@@ -136,10 +140,6 @@ export async function handleMessage(message, env) {
         })
       });
     }
-  }
-  // Handle /stats command (admin only) - fallback safety
-  else if (text === "/stats") {
-    await handleStats(chatId, env, messageId);
   }
   // Handle search - any text that doesn't start with /
   else if (text && !text.startsWith("/")) {
