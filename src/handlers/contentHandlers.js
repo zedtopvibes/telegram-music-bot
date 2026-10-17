@@ -562,7 +562,6 @@ export async function handleTrack(callbackQuery, env, ctx) {
   const artistName = track.artist_name || "Unknown Artist";
   const caption = `🎧 ${track.title} - ${artistName}`;
   
-  // Send artwork if available
   if (track.artwork_url && track.artwork_url !== "" && track.artwork_url !== "null") {
     let artworkUrl = track.artwork_url;
     if (!artworkUrl.startsWith("http")) {
@@ -580,7 +579,6 @@ export async function handleTrack(callbackQuery, env, ctx) {
     });
   }
   
-  // Send audio
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendAudio`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -593,7 +591,6 @@ export async function handleTrack(callbackQuery, env, ctx) {
     })
   });
   
-  // TRACK DOWNLOAD (background, no delay)
   const artistLinks = await env.DB.prepare(
     "SELECT DISTINCT artist_id FROM track_artists WHERE track_id = ?"
   ).bind(trackId).all();
@@ -601,7 +598,8 @@ export async function handleTrack(callbackQuery, env, ctx) {
   const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
-    env.DB.prepare("UPDATE tracks SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(trackId)
+    env.DB.prepare("UPDATE tracks SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(trackId),
+    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
   ];
   
   artistIds.forEach(id => {
@@ -752,10 +750,8 @@ export async function handleGetAllAlbum(callbackQuery, env, ctx) {
     })
   });
   
-  // ALBUM DOWNLOAD TRACKING (background)
   const trackIds = tracks.results.map(t => t.id);
   
-  // Fetch artists via junction table
   const placeholders = trackIds.map(() => '?').join(',');
   const artistLinks = await env.DB.prepare(
     `SELECT DISTINCT artist_id FROM track_artists WHERE track_id IN (${placeholders})`
@@ -764,7 +760,8 @@ export async function handleGetAllAlbum(callbackQuery, env, ctx) {
   const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
-    env.DB.prepare("UPDATE albums SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(albumId)
+    env.DB.prepare("UPDATE albums SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(albumId),
+    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
   ];
   
   trackIds.forEach(id => {
@@ -921,7 +918,6 @@ export async function handleGetAllEp(callbackQuery, env, ctx) {
     })
   });
   
-  // EP DOWNLOAD TRACKING (background)
   const trackIds = tracks.results.map(t => t.id);
   
   const placeholders = trackIds.map(() => '?').join(',');
@@ -932,7 +928,8 @@ export async function handleGetAllEp(callbackQuery, env, ctx) {
   const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
-    env.DB.prepare("UPDATE eps SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(epId)
+    env.DB.prepare("UPDATE eps SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(epId),
+    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
   ];
   
   trackIds.forEach(id => {
@@ -1089,7 +1086,6 @@ export async function handleGetAllPlaylist(callbackQuery, env, ctx) {
     })
   });
   
-  // PLAYLIST DOWNLOAD TRACKING (background)
   const trackIds = tracks.results.map(t => t.id);
   
   const placeholders = trackIds.map(() => '?').join(',');
@@ -1100,7 +1096,8 @@ export async function handleGetAllPlaylist(callbackQuery, env, ctx) {
   const artistIds = artistLinks.results ? artistLinks.results.map(r => r.artist_id) : [];
   
   const updates = [
-    env.DB.prepare("UPDATE playlists SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(playlistId)
+    env.DB.prepare("UPDATE playlists SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(playlistId),
+    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
   ];
   
   trackIds.forEach(id => {
