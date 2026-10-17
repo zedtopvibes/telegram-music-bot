@@ -23,7 +23,6 @@ export async function handleStats(chatId, env, messageId = null) {
   }
   
   try {
-    // Run all count queries in parallel
     const [
       tracksCount,
       artistsCount,
@@ -41,31 +40,18 @@ export async function handleStats(chatId, env, messageId = null) {
       albumDownloadsSum,
       epDownloadsSum,
       playlistDownloadsSum,
+      tracksDeliveredAlbums,
+      tracksDeliveredEps,
+      tracksDeliveredPlaylists,
       topTracks,
       topArtists
     ] = await Promise.all([
-      // Library counts
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM tracks WHERE deleted_at IS NULL AND status = 'published'"
-      ).first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM artists WHERE deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM albums WHERE deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM eps WHERE deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM playlists WHERE deleted_at IS NULL AND status = 'published'").first(),
       
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM artists WHERE deleted_at IS NULL AND status = 'published'"
-      ).first(),
-      
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM albums WHERE deleted_at IS NULL AND status = 'published'"
-      ).first(),
-      
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM eps WHERE deleted_at IS NULL AND status = 'published'"
-      ).first(),
-      
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM playlists WHERE deleted_at IS NULL AND status = 'published'"
-      ).first(),
-      
-      // Tracks by year
       env.DB.prepare(`
         SELECT strftime('%Y', release_date) as year, COUNT(*) as count
         FROM tracks 
@@ -77,50 +63,42 @@ export async function handleStats(chatId, env, messageId = null) {
         LIMIT 5
       `).all(),
       
-      // Featured content
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM tracks WHERE editor_pick = 1 AND deleted_at IS NULL AND status = 'published'"
-      ).first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE editor_pick = 1 AND deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE featured = 1 AND deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM albums WHERE is_featured = 1 AND deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM artists WHERE is_zambian_legend = 1 AND deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE explicit = 1 AND deleted_at IS NULL AND status = 'published'").first(),
+      env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE explicit = 0 AND deleted_at IS NULL AND status = 'published'").first(),
       
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM tracks WHERE featured = 1 AND deleted_at IS NULL AND status = 'published'"
-      ).first(),
+      // Download Activity (Clicks/Events)
+      env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM tracks").first(),
+      env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM albums").first(),
+      env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM eps").first(),
+      env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM playlists").first(),
       
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM albums WHERE is_featured = 1 AND deleted_at IS NULL AND status = 'published'"
-      ).first(),
+      // Tracks Delivered (Actual Files Sent) - Calculated by multiplying downloads by tracks in collection
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(
+          (SELECT COUNT(*) FROM album_tracks at WHERE at.album_id = a.id) * a.bot_downloads
+        ), 0) as total 
+        FROM albums a
+      `).first(),
       
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM artists WHERE is_zambian_legend = 1 AND deleted_at IS NULL AND status = 'published'"
-      ).first(),
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(
+          (SELECT COUNT(*) FROM ep_tracks et WHERE et.ep_id = e.id) * e.bot_downloads
+        ), 0) as total 
+        FROM eps e
+      `).first(),
       
-      // Content type
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM tracks WHERE explicit = 1 AND deleted_at IS NULL AND status = 'published'"
-      ).first(),
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(
+          (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) * p.bot_downloads
+        ), 0) as total 
+        FROM playlists p
+      `).first(),
       
-      env.DB.prepare(
-        "SELECT COUNT(*) as c FROM tracks WHERE explicit = 0 AND deleted_at IS NULL AND status = 'published'"
-      ).first(),
-      
-      // Downloads sums
-      env.DB.prepare(
-        "SELECT COALESCE(SUM(bot_downloads), 0) as total FROM tracks"
-      ).first(),
-      
-      env.DB.prepare(
-        "SELECT COALESCE(SUM(bot_downloads), 0) as total FROM albums"
-      ).first(),
-      
-      env.DB.prepare(
-        "SELECT COALESCE(SUM(bot_downloads), 0) as total FROM eps"
-      ).first(),
-      
-      env.DB.prepare(
-        "SELECT COALESCE(SUM(bot_downloads), 0) as total FROM playlists"
-      ).first(),
-      
-      // Top 5 tracks
+      // Top Tracks
       env.DB.prepare(`
         SELECT t.title, t.bot_downloads, a.name as artist_name
         FROM tracks t
@@ -133,7 +111,7 @@ export async function handleStats(chatId, env, messageId = null) {
         LIMIT 5
       `).all(),
       
-      // Top 5 artists
+      // Top Artists
       env.DB.prepare(`
         SELECT name, bot_total_downloads
         FROM artists
@@ -145,7 +123,7 @@ export async function handleStats(chatId, env, messageId = null) {
       `).all()
     ]);
     
-    // Build year list
+    // Build lists
     let yearList = "";
     if (yearCount.results && yearCount.results.length > 0) {
       yearCount.results.forEach((row) => {
@@ -156,7 +134,6 @@ export async function handleStats(chatId, env, messageId = null) {
       yearList = "├─ No data";
     }
     
-    // Build top tracks list
     let topTracksList = "";
     if (topTracks.results && topTracks.results.length > 0) {
       topTracks.results.forEach((row, i) => {
@@ -168,7 +145,6 @@ export async function handleStats(chatId, env, messageId = null) {
       topTracksList = "No downloads yet";
     }
     
-    // Build top artists list
     let topArtistsList = "";
     if (topArtists.results && topArtists.results.length > 0) {
       topArtists.results.forEach((row, i) => {
@@ -179,14 +155,20 @@ export async function handleStats(chatId, env, messageId = null) {
       topArtistsList = "No downloads yet";
     }
     
-    // Calculate total downloads
-    const totalDownloads = 
+    // Calculate Totals
+    const totalEvents = 
       (trackDownloadsSum.total || 0) + 
       (albumDownloadsSum.total || 0) + 
       (epDownloadsSum.total || 0) + 
       (playlistDownloadsSum.total || 0);
+      
+    const totalFilesDelivered = 
+      (trackDownloadsSum.total || 0) + 
+      (tracksDeliveredAlbums.total || 0) + 
+      (tracksDeliveredEps.total || 0) + 
+      (tracksDeliveredPlaylists.total || 0);
     
-    // Build stats message
+    // Build Message
     const statsText = `📊 <b>ZedTopVibes Bot Stats</b>
 
 🎵 <b>Library</b>
@@ -196,12 +178,19 @@ export async function handleStats(chatId, env, messageId = null) {
 ├─ 📋 Playlists: ${playlistsCount.c}
 └─ 🎧 Tracks: ${tracksCount.c}
 
-📥 <b>Bot Downloads</b>
-├─ Tracks: ${trackDownloadsSum.total}
+📥 <b>Download Activity (Clicks)</b>
+├─ Individual Tracks: ${trackDownloadsSum.total}
 ├─ Albums: ${albumDownloadsSum.total}
 ├─ EPs: ${epDownloadsSum.total}
 ├─ Playlists: ${playlistDownloadsSum.total}
-└─ Total: ${totalDownloads}
+└─ Total Events: ${totalEvents}
+
+🎧 <b>Tracks Delivered (Files)</b>
+├─ From Individual: ${trackDownloadsSum.total}
+├─ From Albums: ${tracksDeliveredAlbums.total}
+├─ From EPs: ${tracksDeliveredEps.total}
+├─ From Playlists: ${tracksDeliveredPlaylists.total}
+└─ Total Files: ${totalFilesDelivered}
 
 🔥 <b>Top 5 Tracks</b>
 ${topTracksList}
