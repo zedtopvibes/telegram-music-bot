@@ -36,6 +36,7 @@ export async function checkSubscription(chatId, env) {
       allowed: false,
       message: "Please join our channel to use this bot",
       keyboard: keyboard
+reply_to_message_id: messageId // 👈 Add this so the keyboard replies to the user
     };
   }
   
