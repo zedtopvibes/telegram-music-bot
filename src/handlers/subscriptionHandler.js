@@ -1,5 +1,5 @@
 import { checkSubscription } from "../middleware/checkSubscription.js";
-import { handleStart } from "../commands/start.js"; // 👈 Import handleStart
+import { handleStart } from "../commands/start.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
@@ -12,14 +12,23 @@ export async function handleSubscriptionCheck(callbackQuery, env) {
   const subCheck = await checkSubscription(chatId, env);
   
   if (subCheck.allowed) {
-    // 1. Answer the callback to stop the loading spinner
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     
-    // 2. Delete the old "Please join" message to keep the chat clean
+    // 👇 GET THE ORIGINAL MESSAGE ID TO CREATE THE QUOTE BLOCK
+    let replyId = null;
+    if (callbackQuery.message.reply_to_message) {
+      // If the "Please join" message was a reply to the /start command
+      replyId = callbackQuery.message.reply_to_message.message_id;
+    } else {
+      // Fallback: If it wasn't a reply, we just reply to the message the button is attached to
+      replyId = messageId; 
+    }
+
+    // Delete the "Please join" message
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -29,11 +38,10 @@ export async function handleSubscriptionCheck(callbackQuery, env) {
       })
     }).catch(() => {});
     
-    // 3. Automatically trigger the Start Menu!
-    await handleStart(chatId, firstName, env);
+    // Trigger Start Menu AND Reply to the original message
+    await handleStart(chatId, firstName, env, replyId);
     
   } else {
-    // User hasn't joined yet
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
