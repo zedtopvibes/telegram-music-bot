@@ -1,4 +1,4 @@
-export async function checkSubscription(chatId, env) {
+export async function checkSubscription(chatId, env, messageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const CHANNEL_USERNAME = env.CHANNEL_USERNAME;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -32,12 +32,18 @@ export async function checkSubscription(chatId, env) {
       ]
     };
     
-    return {
+    const response = {
       allowed: false,
       message: "Please join our channel to use this bot",
       keyboard: keyboard
-reply_to_message_id: messageId // 👈 Add this so the keyboard replies to the user
     };
+    
+    // 👇 ADD THIS: If messageId is provided, reply to the original message
+    if (messageId) {
+      response.reply_to_message_id = messageId;
+    }
+    
+    return response;
   }
   
   return { allowed: true };
