@@ -24,6 +24,7 @@ export async function handleStats(chatId, env, messageId = null) {
   
   try {
     const [
+      usersCount, // 👈 NEW: Total Users
       tracksCount,
       artistsCount,
       albumsCount,
@@ -46,12 +47,17 @@ export async function handleStats(chatId, env, messageId = null) {
       topTracks,
       topArtists
     ] = await Promise.all([
+      // 1. Total Users
+      env.DB.prepare("SELECT COUNT(*) as c FROM bot_users").first(),
+      
+      // 2. Library Counts
       env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM artists WHERE deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM albums WHERE deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM eps WHERE deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM playlists WHERE deleted_at IS NULL AND status = 'published'").first(),
       
+      // 3. Tracks by year
       env.DB.prepare(`
         SELECT strftime('%Y', release_date) as year, COUNT(*) as count
         FROM tracks 
@@ -63,20 +69,23 @@ export async function handleStats(chatId, env, messageId = null) {
         LIMIT 5
       `).all(),
       
+      // 4. Featured Content
       env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE editor_pick = 1 AND deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE featured = 1 AND deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM albums WHERE is_featured = 1 AND deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM artists WHERE is_zambian_legend = 1 AND deleted_at IS NULL AND status = 'published'").first(),
+      
+      // 5. Content Type
       env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE explicit = 1 AND deleted_at IS NULL AND status = 'published'").first(),
       env.DB.prepare("SELECT COUNT(*) as c FROM tracks WHERE explicit = 0 AND deleted_at IS NULL AND status = 'published'").first(),
       
-      // Download Activity (Clicks/Events)
+      // 6. Download Activity (Clicks)
       env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM tracks").first(),
       env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM albums").first(),
       env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM eps").first(),
       env.DB.prepare("SELECT COALESCE(SUM(bot_downloads), 0) as total FROM playlists").first(),
       
-      // Tracks Delivered (Actual Files Sent) - Calculated by multiplying downloads by tracks in collection
+      // 7. Tracks Delivered (Actual Files Sent)
       env.DB.prepare(`
         SELECT COALESCE(SUM(
           (SELECT COUNT(*) FROM album_tracks at WHERE at.album_id = a.id) * a.bot_downloads
@@ -98,7 +107,7 @@ export async function handleStats(chatId, env, messageId = null) {
         FROM playlists p
       `).first(),
       
-      // Top Tracks
+      // 8. Top Tracks
       env.DB.prepare(`
         SELECT t.title, t.bot_downloads, a.name as artist_name
         FROM tracks t
@@ -111,7 +120,7 @@ export async function handleStats(chatId, env, messageId = null) {
         LIMIT 5
       `).all(),
       
-      // Top Artists
+      // 9. Top Artists
       env.DB.prepare(`
         SELECT name, bot_total_downloads
         FROM artists
@@ -170,6 +179,9 @@ export async function handleStats(chatId, env, messageId = null) {
     
     // Build Message
     const statsText = `📊 <b>ZedTopVibes Bot Stats</b>
+
+👥 <b>Users</b>
+└─ Total Users: ${usersCount.c}
 
 🎵 <b>Library</b>
 ├─ 🎤 Artists: ${artistsCount.c}
