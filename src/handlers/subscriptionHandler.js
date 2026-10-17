@@ -52,4 +52,4 @@ export async function handleSubscriptionCheck(callbackQuery, env) {
       })
     });
   }
-}
+} 
