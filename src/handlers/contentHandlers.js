@@ -761,7 +761,8 @@ export async function handleGetAllAlbum(callbackQuery, env, ctx) {
   
   const updates = [
     env.DB.prepare("UPDATE albums SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(albumId),
-    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
+    // 👇 FIX: Add totalTracks to user profile
+    env.DB.prepare(`UPDATE bot_users SET user_total_downloads = user_total_downloads + ${totalTracks} WHERE user_id = ?`).bind(chatId)
   ];
   
   trackIds.forEach(id => {
@@ -929,7 +930,8 @@ export async function handleGetAllEp(callbackQuery, env, ctx) {
   
   const updates = [
     env.DB.prepare("UPDATE eps SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(epId),
-    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
+    // 👇 FIX: Add totalTracks to user profile
+    env.DB.prepare(`UPDATE bot_users SET user_total_downloads = user_total_downloads + ${totalTracks} WHERE user_id = ?`).bind(chatId)
   ];
   
   trackIds.forEach(id => {
@@ -1097,7 +1099,8 @@ export async function handleGetAllPlaylist(callbackQuery, env, ctx) {
   
   const updates = [
     env.DB.prepare("UPDATE playlists SET bot_downloads = bot_downloads + 1 WHERE id = ?").bind(playlistId),
-    env.DB.prepare("UPDATE bot_users SET user_total_downloads = user_total_downloads + 1 WHERE user_id = ?").bind(chatId)
+    // 👇 FIX: Add totalTracks to user profile
+    env.DB.prepare(`UPDATE bot_users SET user_total_downloads = user_total_downloads + ${totalTracks} WHERE user_id = ?`).bind(chatId)
   ];
   
   trackIds.forEach(id => {
