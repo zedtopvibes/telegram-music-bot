@@ -7,14 +7,15 @@ import { handleAlbum } from "../commands/album.js";
 import { handleEp } from "../commands/ep.js";
 import { handlePlaylist } from "../commands/playlist.js";
 import { handleStats } from "../commands/stats.js";
-import { trackUser } from "../utils/userTracker.js"; // 👈 NEW
+import { handleProfile } from "../commands/profile.js"; // 👈 NEW
+import { trackUser } from "../utils/userTracker.js"; 
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { deleteSearchPrompt, deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
 export async function handleMessage(message, env, ctx) {
-  // 👈 TRACK USER AT THE VERY START
+  // Track user silently first
   await trackUser(message.from, ctx, env);
 
   const BOT_TOKEN = env.BOT_TOKEN;
@@ -23,19 +24,18 @@ export async function handleMessage(message, env, ctx) {
   const firstName = message.chat.first_name || "User";
   const messageId = message.message_id;
   
-  // Skip force sub check for /forcesub commands (admin only)
+  // Admin bypasses force sub for /forcesub and /stats
   if (text.startsWith("/forcesub")) {
     await handleForceSub(text, chatId, env);
     return;
   }
   
-  // Skip force sub check for /stats command (admin only)
   if (text === "/stats") {
     await handleStats(chatId, env, messageId);
     return;
   }
   
-  // Check subscription for all other commands
+  // 🛑 FORCE SUB CHECK FOR EVERYONE ELSE
   const subCheck = await checkSubscription(chatId, env);
   
   if (!subCheck.allowed) {
@@ -52,11 +52,14 @@ export async function handleMessage(message, env, ctx) {
     return;
   }
   
-  // Handle /start command
-  if (text === "/start") {
+  // --- BELOW THIS LINE, USER IS VERIFIED AND SUBBED ---
+
+  if (text === "/profile") {
+    await handleProfile(chatId, env, messageId);
+  }
+  else if (text === "/start") {
     await handleStart(chatId, firstName, env, messageId);
   }
-  // Handle /track command
   else if (text.startsWith("/track")) {
     const trackQuery = text.replace("/track", "").trim();
     if (trackQuery) {
@@ -73,7 +76,6 @@ export async function handleMessage(message, env, ctx) {
       });
     }
   }
-  // Handle /artist command
   else if (text.startsWith("/artist")) {
     const artistName = text.replace("/artist", "").trim();
     if (artistName) {
@@ -90,7 +92,6 @@ export async function handleMessage(message, env, ctx) {
       });
     }
   }
-  // Handle /album command
   else if (text.startsWith("/album")) {
     const albumName = text.replace("/album", "").trim();
     if (albumName) {
@@ -107,7 +108,6 @@ export async function handleMessage(message, env, ctx) {
       });
     }
   }
-  // Handle /ep command
   else if (text.startsWith("/ep")) {
     const epName = text.replace("/ep", "").trim();
     if (epName) {
@@ -124,7 +124,6 @@ export async function handleMessage(message, env, ctx) {
       });
     }
   }
-  // Handle /playlist command
   else if (text.startsWith("/playlist")) {
     const playlistName = text.replace("/playlist", "").trim();
     if (playlistName) {
@@ -141,7 +140,6 @@ export async function handleMessage(message, env, ctx) {
       });
     }
   }
-  // Handle search - any text that doesn't start with /
   else if (text && !text.startsWith("/")) {
     await deleteSearchPrompt(chatId, env);
     await deletePreviousMessage(chatId, env);
@@ -151,14 +149,13 @@ export async function handleMessage(message, env, ctx) {
       setLastMessageId(chatId, result.message_id);
     }
   }
-  // Handle unknown commands
   else if (text.startsWith("/")) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "Command not recognized. Try /start, /track, /artist, /album, /ep, or /playlist",
+        text: "Command not recognized. Try /start, /profile, /track, /artist, /album, /ep, or /playlist",
         reply_to_message_id: messageId
       })
     });
