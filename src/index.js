@@ -41,6 +41,7 @@ async function setupBotMenu(env) {
       body: JSON.stringify({
         commands: [
           { command: "start", description: "🏠 Main menu" },
+          { command: "profile", description: "👤 My Profile" },
           { command: "help", description: "❓ Help" }
         ]
       })
