@@ -7,7 +7,8 @@ import { handleAlbum } from "../commands/album.js";
 import { handleEp } from "../commands/ep.js";
 import { handlePlaylist } from "../commands/playlist.js";
 import { handleStats } from "../commands/stats.js";
-import { handleProfile } from "../commands/profile.js"; // 👈 NEW
+import { handleInfo } from "../commands/info.js";
+import { handleProfile } from "../commands/profile.js"; 
 import { trackUser } from "../utils/userTracker.js"; 
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { deleteSearchPrompt, deletePreviousMessage, setLastMessageId } from "../utils/userState.js";
@@ -36,7 +37,7 @@ export async function handleMessage(message, env, ctx) {
   }
   
   // 🛑 FORCE SUB CHECK FOR EVERYONE ELSE
-  const subCheck = await checkSubscription(chatId, env);
+  const subCheck = await checkSubscription(chatId, env, messageId);
   
   if (!subCheck.allowed) {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
@@ -45,7 +46,7 @@ export async function handleMessage(message, env, ctx) {
       body: JSON.stringify({
         chat_id: chatId,
         text: subCheck.message,
-        reply_to_message_id: messageId,
+        reply_to_message_id: subCheck.reply_to_message_id, 
         reply_markup: subCheck.keyboard
       })
     });
@@ -55,7 +56,11 @@ export async function handleMessage(message, env, ctx) {
   // --- BELOW THIS LINE, USER IS VERIFIED AND SUBBED ---
 
   if (text === "/profile") {
-    await handleProfile(chatId, env, messageId);
+    // 👇 Passing null sends a fresh message. The buttons will edit it later.
+    await handleProfile(chatId, env, null, "main");
+  }
+  else if (text === "/info" || text === "/about") {
+    await handleInfo(chatId, env, messageId);
   }
   else if (text === "/start") {
     await handleStart(chatId, firstName, env, messageId);
@@ -155,7 +160,7 @@ export async function handleMessage(message, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "Command not recognized. Try /start, /profile, /track, /artist, /album, /ep, or /playlist",
+        text: "Command not recognized. Try /start, /profile, /info, /track, /artist, /album, /ep, or /playlist",
         reply_to_message_id: messageId
       })
     });
