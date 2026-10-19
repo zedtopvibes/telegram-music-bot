@@ -7,7 +7,7 @@ import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchP
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { storeDeepLink, generateDeepLink } from "../utils/deepLinks.js";
 import { trackUser } from "../utils/userTracker.js"; 
-import { handleProfile, handleProfileBadges } from "../commands/profile.js"; 
+import { handleProfile } from "../commands/profile.js"; 
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 const IMAGE_CDN = "https://zedtopvibes.com";
@@ -21,7 +21,6 @@ async function checkUserSubscription(chatId, env) {
 }
 
 export async function handleCallbackQuery(callbackQuery, env, ctx) {
-  // Track user silently
   await trackUser(callbackQuery.from, ctx, env);
 
   const BOT_TOKEN = env.BOT_TOKEN;
@@ -119,46 +118,21 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    // Pass messageId to edit instead of sending new
-    await handleProfile(chatId, env, messageId); 
+    await handleProfile(chatId, env, messageId, "main"); 
     return;
   }
 
-  // Handle Profile Badges Button
-  if (data === "profile_badges") {
+  // Handle Profile Tabs (Subs, Titles, Rewards, Stats)
+  if (data.startsWith("profile_")) {
+    const view = data.replace("profile_", ""); 
+    
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    // Pass messageId to edit
-    await handleProfileBadges(chatId, env, messageId);
-    return;
-  }
-
-  // Handle Back to Profile Button
-  if (data === "profile_home") {
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callback_query_id: callbackQuery.id })
-    });
-    // Pass messageId to edit
-    await handleProfile(chatId, env, messageId);
-    return;
-  }
-
-  // Handle Profile Stats Button (Placeholder for future)
-  if (data === "profile_stats") {
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        callback_query_id: callbackQuery.id,
-        text: "📊 Detailed stats coming soon!",
-        show_alert: true
-      })
-    });
+    
+    await handleProfile(chatId, env, messageId, view);
     return;
   }
   
