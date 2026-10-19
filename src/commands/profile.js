@@ -21,7 +21,6 @@ export async function handleProfile(chatId, env, messageId, view = "main") {
     else if (downloads >= 50) badge = "🔥 Music Lover";
     else if (downloads >= 10) badge = "🎧 Listener";
 
-    // Default main profile text
     let text = `👤 <b>Your Profile</b>
 
 📛 <b>Name:</b> ${user.first_name || "User"}
@@ -92,18 +91,31 @@ You currently have <b>0</b> points.
       ]
     };
 
-    // Always edit the message so it doesn't send new ones
-    await fetch(`${TELEGRAM_API}/editMessageText`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId,
-        text: text,
-        parse_mode: "HTML",
-        reply_markup: keyboard
-      })
-    });
+    // If messageId exists, EDIT the message. If null, SEND a new one.
+    if (messageId) {
+      await fetch(`${TELEGRAM_API}/editMessageText`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          text: text,
+          parse_mode: "HTML",
+          reply_markup: keyboard
+        })
+      });
+    } else {
+      await fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: text,
+          parse_mode: "HTML",
+          reply_markup: keyboard
+        })
+      });
+    }
     
   } catch (error) {
     console.error("Profile error:", error);
