@@ -7,7 +7,7 @@ import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchP
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { storeDeepLink, generateDeepLink } from "../utils/deepLinks.js";
 import { trackUser } from "../utils/userTracker.js"; 
-import { handleProfile, handleProfileBadges } from "../commands/profile.js"; // 👈 NEW
+import { handleProfile, handleProfileBadges } from "../commands/profile.js"; 
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 const IMAGE_CDN = "https://zedtopvibes.com";
@@ -21,7 +21,7 @@ async function checkUserSubscription(chatId, env) {
 }
 
 export async function handleCallbackQuery(callbackQuery, env, ctx) {
-  // 👈 TRACK USER
+  // Track user silently
   await trackUser(callbackQuery.from, ctx, env);
 
   const BOT_TOKEN = env.BOT_TOKEN;
@@ -119,7 +119,8 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleProfile(chatId, env);
+    // Pass messageId to edit instead of sending new
+    await handleProfile(chatId, env, messageId); 
     return;
   }
 
@@ -130,7 +131,8 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleProfileBadges(chatId, env);
+    // Pass messageId to edit
+    await handleProfileBadges(chatId, env, messageId);
     return;
   }
 
@@ -141,7 +143,8 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    await handleProfile(chatId, env);
+    // Pass messageId to edit
+    await handleProfile(chatId, env, messageId);
     return;
   }
 
