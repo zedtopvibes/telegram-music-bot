@@ -1,4 +1,4 @@
-export async function handleProfile(chatId, env, messageId = null) {
+export async function handleProfile(chatId, env, messageId, view = "main") {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
@@ -12,7 +12,6 @@ export async function handleProfile(chatId, env, messageId = null) {
     const joinDate = user.first_seen ? user.first_seen.split(" ")[0] : "Unknown";
     const downloads = user.user_total_downloads || 0;
     
-    // Get Badge
     let badge = "🎵 Newbie";
     if (downloads >= 5000) badge = "🏆 Legend";
     else if (downloads >= 2500) badge = "⚡ Elite";
@@ -21,8 +20,9 @@ export async function handleProfile(chatId, env, messageId = null) {
     else if (downloads >= 150) badge = "👑 Vibe Master";
     else if (downloads >= 50) badge = "🔥 Music Lover";
     else if (downloads >= 10) badge = "🎧 Listener";
-    
-    const profileText = `👤 <b>Your Profile</b>
+
+    // Default main profile text
+    let text = `👤 <b>Your Profile</b>
 
 📛 <b>Name:</b> ${user.first_name || "User"}
 📅 <b>Joined:</b> ${joinDate}
@@ -30,80 +30,82 @@ export async function handleProfile(chatId, env, messageId = null) {
 
 🎧 <b>Total Downloads:</b> ${downloads}`;
 
-    const keyboard = {
-      inline_keyboard: [
-        [{ text: "🏆 Titles & Progress", callback_data: "profile_badges" }],
-        [{ text: "📊 My Stats", callback_data: "profile_stats" }],
-        [{ text: "❌ Close", callback_data: "delete_message" }]
-      ]
-    };
+    // --- HANDLE DIFFERENT VIEWS ---
+    if (view === "titles") {
+      let currentBadge = "🎵 Newbie";
+      let nextBadge = "🎧 Listener (10)";
+      let needed = 10 - downloads;
+      
+      if (downloads >= 5000) { currentBadge = "🏆 Legend"; nextBadge = "MAX LEVEL"; needed = 0; }
+      else if (downloads >= 2500) { currentBadge = "⚡ Elite"; nextBadge = "🏆 Legend (5000)"; needed = 5000 - downloads; }
+      else if (downloads >= 1000) { currentBadge = "💎 Music Addict"; nextBadge = "⚡ Elite (2500)"; needed = 2500 - downloads; }
+      else if (downloads >= 500) { currentBadge = "🌟 Super Fan"; nextBadge = "💎 Music Addict (1000)"; needed = 1000 - downloads; }
+      else if (downloads >= 150) { currentBadge = "👑 Vibe Master"; nextBadge = "🌟 Super Fan (500)"; needed = 500 - downloads; }
+      else if (downloads >= 50) { currentBadge = "🔥 Music Lover"; nextBadge = "👑 Vibe Master (150)"; needed = 150 - downloads; }
+      else if (downloads >= 10) { currentBadge = "🎧 Listener"; nextBadge = "🔥 Music Lover (50)"; needed = 50 - downloads; }
 
-    const requestBody = {
-      chat_id: chatId,
-      text: profileText,
-      parse_mode: "HTML",
-      reply_markup: keyboard
-    };
-    
-    if (messageId) requestBody.reply_to_message_id = messageId;
-    
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-    
-  } catch (error) {
-    console.error("Profile error:", error);
-  }
-}
-
-// 👇 NEW FUNCTION: For the Badges Button
-export async function handleProfileBadges(chatId, env) {
-  const BOT_TOKEN = env.BOT_TOKEN;
-  const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-  
-  const user = await env.DB.prepare(
-    "SELECT user_total_downloads FROM bot_users WHERE user_id = ?"
-  ).bind(chatId).first();
-  
-  const downloads = user.user_total_downloads || 0;
-  
-  let currentBadge = "🎵 Newbie";
-  let nextBadge = "🎧 Listener (10)";
-  let needed = 10 - downloads;
-  
-  if (downloads >= 5000) { currentBadge = "🏆 Legend"; nextBadge = "MAX LEVEL"; needed = 0; }
-  else if (downloads >= 2500) { currentBadge = "⚡ Elite"; nextBadge = "🏆 Legend (5000)"; needed = 5000 - downloads; }
-  else if (downloads >= 1000) { currentBadge = "💎 Music Addict"; nextBadge = "⚡ Elite (2500)"; needed = 2500 - downloads; }
-  else if (downloads >= 500) { currentBadge = "🌟 Super Fan"; nextBadge = "💎 Music Addict (1000)"; needed = 1000 - downloads; }
-  else if (downloads >= 150) { currentBadge = "👑 Vibe Master"; nextBadge = "🌟 Super Fan (500)"; needed = 500 - downloads; }
-  else if (downloads >= 50) { currentBadge = "🔥 Music Lover"; nextBadge = "👑 Vibe Master (150)"; needed = 150 - downloads; }
-  else if (downloads >= 10) { currentBadge = "🎧 Listener"; nextBadge = "🔥 Music Lover (50)"; needed = 50 - downloads; }
-
-  const progressText = `🏆 <b>Your Titles & Progress</b>
+      text = `🏆 <b>Titles & Progress</b>
 
 🎖️ <b>Current Title:</b> ${currentBadge}
 🎧 <b>Total Downloads:</b> ${downloads}
 
 📈 <b>Next Level:</b> ${nextBadge}
 ${needed > 0 ? `👉 Download <b>${needed}</b> more tracks to level up!` : `🎉 You have reached the maximum level!`}`;
+    } 
+    else if (view === "stats") {
+      text = `📊 <b>My Stats</b>
 
-  const keyboard = {
-    inline_keyboard: [
-      [{ text: "🔙 Back to Profile", callback_data: "profile_home" }],
-      [{ text: "❌ Close", callback_data: "delete_message" }]
-    ]
-  };
+🎧 <b>Total Tracks Downloaded:</b> ${downloads}
+📅 <b>Member Since:</b> ${joinDate}
 
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: progressText,
-      parse_mode: "HTML",
-      reply_markup: keyboard
-    })
-  });
+<i>Keep listening to unlock more stats!</i>`;
+    }
+    else if (view === "subs") {
+      text = `🔔 <b>Subscriptions</b>
+
+You haven't followed any artists yet.
+
+<i>Artist follow feature is coming soon!</i>`;
+    }
+    else if (view === "rewards") {
+      text = `🎁 <b>Rewards</b>
+
+You currently have <b>0</b> points.
+
+<i>Earn points by downloading music and redeem them for exclusive content. Coming soon!</i>`;
+    }
+
+    // --- THE 4 BUTTONS ---
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: "🔔 Subs", callback_data: "profile_subs" },
+          { text: "🏆 Titles", callback_data: "profile_titles" }
+        ],
+        [
+          { text: "🎁 Rewards", callback_data: "profile_rewards" },
+          { text: "📊 Stats", callback_data: "profile_stats" }
+        ],
+        [
+          { text: "❌ Close", callback_data: "delete_message" }
+        ]
+      ]
+    };
+
+    // Always edit the message so it doesn't send new ones
+    await fetch(`${TELEGRAM_API}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text: text,
+        parse_mode: "HTML",
+        reply_markup: keyboard
+      })
+    });
+    
+  } catch (error) {
+    console.error("Profile error:", error);
+  }
 }
