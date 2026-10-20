@@ -56,7 +56,7 @@ export async function handleMessage(message, env, ctx) {
   // --- BELOW THIS LINE, USER IS VERIFIED AND SUBBED ---
 
   if (text === "/profile") {
-    // 👇 Passing null sends a fresh message. The buttons will edit it later.
+    // 👇 Pass null so it sends a NEW message (no editing the user's text)
     await handleProfile(chatId, env, null, "main");
   }
   else if (text === "/info" || text === "/about") {
