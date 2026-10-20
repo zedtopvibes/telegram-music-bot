@@ -121,4 +121,4 @@ You currently have <b>0</b> points.
   } catch (error) {
     console.error("Profile error:", error);
   }
-}
+} 
