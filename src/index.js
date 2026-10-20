@@ -75,19 +75,16 @@ async function handleUpdate(update, env, ctx) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
-  // 1. Handle Inline Queries (When typing @bot ...)
   if (update.inline_query) {
     await handleInlineQuery(update.inline_query, env);
     return;
   }
   
-  // 2. Handle Button Clicks
   if (update.callback_query) {
     await handleCallbackQuery(update.callback_query, env, ctx);
     return;
   }
   
-  // 3. Handle Messages
   if (update.message) {
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
@@ -95,34 +92,52 @@ async function handleUpdate(update, env, ctx) {
     if (text.startsWith("/start ")) {
       const requestId = text.replace("/start ", "").trim();
       
-      // --- INLINE DEEP LINKS (Short & Safe Format) ---
+      // --- INLINE DEEP LINKS ---
       if (requestId.startsWith("inline_")) {
+        // Example: inline_artist_46
         const parts = requestId.split("_");
-        const type = parts[1]; // track, artist, album, etc.
-        const id = parts[2];   // The ID
+        
+        // Safety check to ensure it has 3 parts: inline, artist, 46
+        if (parts.length >= 3) {
+          const type = parts[1];
+          const id = parts[2];
 
-        const fakeCallback = { 
-          id: Date.now().toString(), 
-          data: `${type}_${id}`, 
-          from: update.message.from,
-          message: { chat: { id: chatId } } 
-        };
+          const fakeCallback = { 
+            id: Date.now().toString(), 
+            data: `${type}_${id}`, 
+            from: update.message.from,
+            message: { chat: { id: chatId } } 
+          };
 
-        if (type === "track") {
-          await handleTrackDirect(fakeCallback, env, ctx);
-        } else if (type === "artist") {
-          await handleArtist(fakeCallback, env);
-        } else if (type === "album") {
-          await handleAlbum(fakeCallback, env);
-        } else if (type === "ep") {
-          await handleEp(fakeCallback, env);
-        } else if (type === "playlist") {
-          await handlePlaylist(fakeCallback, env);
+          try {
+            if (type === "track") {
+              await handleTrackDirect(fakeCallback, env, ctx);
+            } else if (type === "artist") {
+              await handleArtist(fakeCallback, env);
+            } else if (type === "album") {
+              await handleAlbum(fakeCallback, env);
+            } else if (type === "ep") {
+              await handleEp(fakeCallback, env);
+            } else if (type === "playlist") {
+              await handlePlaylist(fakeCallback, env);
+            }
+          } catch (err) {
+            console.error("Inline Deep Link Error:", err);
+            // If it crashes, tell the user instead of being silent
+            await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: "❌ Error loading content. Please try searching manually."
+              })
+            });
+          }
+          return;
         }
-        return;
       }
 
-      // --- GROUP DEEP LINKS (Old working logic) ---
+      // --- GROUP DEEP LINKS ---
       const request = getDeepLink(requestId);
       
       if (!request) {
@@ -209,7 +224,6 @@ async function handleUpdate(update, env, ctx) {
       return;
     }
     
-    // Normal messages (not deep links)
     await handleMessage(update.message, env, ctx);
   }
 }
