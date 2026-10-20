@@ -7,7 +7,7 @@ import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchP
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { storeDeepLink, generateDeepLink } from "../utils/deepLinks.js";
 import { trackUser } from "../utils/userTracker.js"; 
-import { handleProfile } from "../commands/profile.js"; // 👈 Import Profile
+import { handleProfile } from "../commands/profile.js"; 
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 const IMAGE_CDN = "https://zedtopvibes.com";
@@ -21,7 +21,6 @@ async function checkUserSubscription(chatId, env) {
 }
 
 export async function handleCallbackQuery(callbackQuery, env, ctx) {
-  // Track user silently
   await trackUser(callbackQuery.from, ctx, env);
 
   const BOT_TOKEN = env.BOT_TOKEN;
