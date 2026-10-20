@@ -19,10 +19,6 @@ import { checkSubscription } from "./middleware/checkSubscription.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
 
-// ==========================================
-// BOT SETUP (Menu Button + Commands)
-// ==========================================
-
 async function setupBotMenu(env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
@@ -31,9 +27,7 @@ async function setupBotMenu(env) {
     await fetch(`${TELEGRAM_API_URL}/setChatMenuButton`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        menu_button: { type: "commands" }
-      })
+      body: JSON.stringify({ menu_button: { type: "commands" } })
     });
     
     await fetch(`${TELEGRAM_API_URL}/setMyCommands`, {
@@ -48,16 +42,10 @@ async function setupBotMenu(env) {
         ]
       })
     });
-    
-    console.log("Bot menu setup complete");
   } catch (error) {
     console.error("Menu setup error:", error);
   }
 }
-
-// ==========================================
-// MAIN WORKER
-// ==========================================
 
 export default {
   async fetch(request, env, ctx) {
@@ -79,50 +67,39 @@ export default {
       }
     }
     
-    if (request.method === "GET" && url.pathname === "/health") {
-      return new Response("Bot is running!", { status: 200 });
-    }
-    
     return new Response("Not found", { status: 404 });
   },
 };
-
-// ==========================================
-// UPDATE HANDLER
-// ==========================================
 
 async function handleUpdate(update, env, ctx) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
-  // Handle Inline Queries (The new inline feature)
+  // 1. Handle Inline Queries (When typing @bot ...)
   if (update.inline_query) {
     await handleInlineQuery(update.inline_query, env);
     return;
   }
   
-  // Handle callback queries (button clicks)
+  // 2. Handle Button Clicks
   if (update.callback_query) {
     await handleCallbackQuery(update.callback_query, env, ctx);
     return;
   }
   
-  // Handle messages
+  // 3. Handle Messages
   if (update.message) {
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
-    const chatType = update.message.chat.type;
-    const isGroup = chatType === 'group' || chatType === 'supergroup';
     
-    // Handle deep link start parameter
     if (text.startsWith("/start ")) {
       const requestId = text.replace("/start ", "").trim();
       
-      // 👇 FIXED: Handle Inline Mode Deep Links
+      // --- INLINE DEEP LINKS (New) ---
       if (requestId.startsWith("inline_")) {
         const parts = requestId.split("_");
-        const type = parts[1];
-        const id = parts[2];
+        const type = parts[1]; // track, artist, album, etc.
+        const id = parts[2];   // The ID
 
         const fakeCallback = { 
           id: Date.now().toString(), 
@@ -142,12 +119,10 @@ async function handleUpdate(update, env, ctx) {
         } else if (type === "playlist") {
           await handlePlaylist(fakeCallback, env);
         }
-        
         return;
       }
-      // 👆 END OF FIX
 
-      // Existing deep link logic
+      // --- GROUP DEEP LINKS (Old working logic) ---
       const request = getDeepLink(requestId);
       
       if (!request) {
@@ -162,7 +137,8 @@ async function handleUpdate(update, env, ctx) {
         return;
       }
       
-      // Check if user is the requester
+      const isGroup = update.message.chat.type === 'group' || update.message.chat.type === 'supergroup';
+
       if (request.userId !== chatId) {
         if (isGroup) {
           const alertMsg = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -180,10 +156,7 @@ async function handleUpdate(update, env, ctx) {
             await fetch(`${TELEGRAM_API_URL}/deleteMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: chatId,
-                message_id: alertData.result.message_id
-              })
+              body: JSON.stringify({ chat_id: chatId, message_id: alertData.result.message_id })
             }).catch(() => {});
           }, 5000);
         } else {
@@ -199,104 +172,44 @@ async function handleUpdate(update, env, ctx) {
         return;
       }
       
-      // Process the request based on type with subscription check
+      const subCheck = await checkSubscription(chatId, env);
+      if (!subCheck.allowed) {
+        await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: subCheck.message,
+            reply_markup: subCheck.keyboard
+          })
+        });
+        return;
+      }
+      
+      const fakeCallback = { 
+        id: Date.now().toString(), 
+        from: update.message.from,
+        message: { chat: { id: chatId } } 
+      };
+
       if (request.trackData.type === 'track') {
-        const subCheck = await checkSubscription(chatId, env);
-        if (!subCheck.allowed) {
-          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: subCheck.message,
-              reply_markup: subCheck.keyboard
-            })
-          });
-          return;
-        }
-        
-        const fakeCallback = {
-          id: Date.now().toString(),
-          data: `track_${request.trackData.id}`,
-          from: update.message.from,
-          message: { chat: { id: chatId } }
-        };
+        fakeCallback.data = `track_${request.trackData.id}`;
         await handleTrackDirect(fakeCallback, env, ctx);
-        
       } else if (request.trackData.type === 'getall_album') {
-        const subCheck = await checkSubscription(chatId, env);
-        if (!subCheck.allowed) {
-          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: subCheck.message,
-              reply_markup: subCheck.keyboard
-            })
-          });
-          return;
-        }
-        
-        const fakeCallback = {
-          id: Date.now().toString(),
-          data: `getall_album_${request.trackData.id}`,
-          from: update.message.from,
-          message: { chat: { id: chatId } }
-        };
+        fakeCallback.data = `getall_album_${request.trackData.id}`;
         await handleGetAllAlbum(fakeCallback, env, ctx);
-        
       } else if (request.trackData.type === 'getall_ep') {
-        const subCheck = await checkSubscription(chatId, env);
-        if (!subCheck.allowed) {
-          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: subCheck.message,
-              reply_markup: subCheck.keyboard
-            })
-          });
-          return;
-        }
-        
-        const fakeCallback = {
-          id: Date.now().toString(),
-          data: `getall_ep_${request.trackData.id}`,
-          from: update.message.from,
-          message: { chat: { id: chatId } }
-        };
+        fakeCallback.data = `getall_ep_${request.trackData.id}`;
         await handleGetAllEp(fakeCallback, env, ctx);
-        
       } else if (request.trackData.type === 'getall_playlist') {
-        const subCheck = await checkSubscription(chatId, env);
-        if (!subCheck.allowed) {
-          await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: subCheck.message,
-              reply_markup: subCheck.keyboard
-            })
-          });
-          return;
-        }
-        
-        const fakeCallback = {
-          id: Date.now().toString(),
-          data: `getall_playlist_${request.trackData.id}`,
-          from: update.message.from,
-          message: { chat: { id: chatId } }
-        };
+        fakeCallback.data = `getall_playlist_${request.trackData.id}`;
         await handleGetAllPlaylist(fakeCallback, env, ctx);
       }
       
       return;
     }
     
-    // Handle regular messages
+    // Normal messages (not deep links)
     await handleMessage(update.message, env, ctx);
   }
 }
