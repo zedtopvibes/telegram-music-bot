@@ -33,10 +33,6 @@ export async function handleInlineQuery(inlineQuery, env) {
 
   const term = `%${searchTerm}%`;
   const results = [];
-  
-  // We use Date.now() and inlineQuery.from.id to make the link unique like the old style
-  const ts = Date.now();
-  const uId = inlineQuery.from.id;
 
   try {
     if (searchType === "global" || searchType === "artist") {
@@ -54,7 +50,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           reply_markup: {
             inline_keyboard: [[{ 
               text: "👤 View Artist in PM", 
-              url: `https://t.me/${BOT_USERNAME}?start=inline_artist_${artist.id}_${ts}_${uId}` 
+              url: `https://t.me/${BOT_USERNAME}?start=inline_artist_${artist.id}`
             }]]
           }
         });
@@ -76,7 +72,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           reply_markup: {
             inline_keyboard: [[{ 
               text: "💿 View Album in PM", 
-              url: `https://t.me/${BOT_USERNAME}?start=inline_album_${album.id}_${ts}_${uId}` 
+              url: `https://t.me/${BOT_USERNAME}?start=inline_album_${album.id}`
             }]]
           }
         });
@@ -98,7 +94,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           reply_markup: {
             inline_keyboard: [[{ 
               text: "🎵 View EP in PM", 
-              url: `https://t.me/${BOT_USERNAME}?start=inline_ep_${ep.id}_${ts}_${uId}` 
+              url: `https://t.me/${BOT_USERNAME}?start=inline_ep_${ep.id}`
             }]]
           }
         });
@@ -120,7 +116,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           reply_markup: {
             inline_keyboard: [[{ 
               text: "📋 View Playlist in PM", 
-              url: `https://t.me/${BOT_USERNAME}?start=inline_playlist_${pl.id}_${ts}_${uId}` 
+              url: `https://t.me/${BOT_USERNAME}?start=inline_playlist_${pl.id}`
             }]]
           }
         });
@@ -150,7 +146,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           reply_markup: {
             inline_keyboard: [[{ 
               text: "📥 Get Track in PM", 
-              url: `https://t.me/${BOT_USERNAME}?start=inline_track_${track.id}_${ts}_${uId}` 
+              url: `https://t.me/${BOT_USERNAME}?start=inline_track_${track.id}`
             }]]
           }
         });
