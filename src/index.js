@@ -12,6 +12,7 @@ import { showNewReleases } from "./commands/newreleases.js";
 import { handleStats } from "./commands/stats.js";
 import { handleCallbackQuery } from "./handlers/callbackQuery.js";
 import { handleMessage } from "./handlers/messageHandler.js";
+import { handleInlineQuery } from "./handlers/inlineHandler.js"; // 👈 NEW IMPORT
 import { handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist, handleTrack as handleTrackDirect } from "./handlers/contentHandlers.js";
 import { getDeepLink } from "./utils/deepLinks.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
@@ -42,6 +43,7 @@ async function setupBotMenu(env) {
         commands: [
           { command: "start", description: "🏠 Main menu" },
           { command: "profile", description: "👤 My Profile" },
+          { command: "info", description: "ℹ️ About the Bot" },
           { command: "help", description: "❓ Help" }
         ]
       })
@@ -93,6 +95,12 @@ async function handleUpdate(update, env, ctx) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
+  // 👇 HANDLE INLINE QUERIES (The new inline feature)
+  if (update.inline_query) {
+    await handleInlineQuery(update.inline_query, env);
+    return;
+  }
+  
   // Handle callback queries (button clicks)
   if (update.callback_query) {
     await handleCallbackQuery(update.callback_query, env, ctx);
@@ -109,6 +117,45 @@ async function handleUpdate(update, env, ctx) {
     // Handle deep link start parameter
     if (text.startsWith("/start ")) {
       const requestId = text.replace("/start ", "").trim();
+      
+      // 👇 NEW: Handle Inline Mode Deep Links
+      if (requestId.startsWith("inline_track_")) {
+        const trackId = requestId.replace("inline_track_", "");
+        const fakeCallback = { id: Date.now().toString(), data: `track_${trackId}`, message: { chat: { id: chatId } } };
+        await handleTrackDirect(fakeCallback, env, ctx);
+        return;
+      }
+      
+      if (requestId.startsWith("inline_artist_")) {
+        const artistId = requestId.replace("inline_artist_", "");
+        const fakeCallback = { id: Date.now().toString(), data: `artist_${artistId}`, message: { chat: { id: chatId } } };
+        await handleArtist(fakeCallback, env);
+        return;
+      }
+
+      if (requestId.startsWith("inline_album_")) {
+        const albumId = requestId.replace("inline_album_", "");
+        const fakeCallback = { id: Date.now().toString(), data: `album_${albumId}`, message: { chat: { id: chatId } } };
+        await handleAlbum(fakeCallback, env);
+        return;
+      }
+
+      if (requestId.startsWith("inline_ep_")) {
+        const epId = requestId.replace("inline_ep_", "");
+        const fakeCallback = { id: Date.now().toString(), data: `ep_${epId}`, message: { chat: { id: chatId } } };
+        await handleEp(fakeCallback, env);
+        return;
+      }
+
+      if (requestId.startsWith("inline_playlist_")) {
+        const playlistId = requestId.replace("inline_playlist_", "");
+        const fakeCallback = { id: Date.now().toString(), data: `playlist_${playlistId}`, message: { chat: { id: chatId } } };
+        await handlePlaylist(fakeCallback, env);
+        return;
+      }
+      // 👆 END OF NEW BLOCK
+
+      // Existing deep link logic
       const request = getDeepLink(requestId);
       
       if (!request) {
