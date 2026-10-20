@@ -12,12 +12,9 @@ import { showNewReleases } from "./commands/newreleases.js";
 import { handleStats } from "./commands/stats.js";
 import { handleCallbackQuery } from "./handlers/callbackQuery.js";
 import { handleMessage } from "./handlers/messageHandler.js";
+import { handleInlineQuery } from "./handlers/inlineHandler.js"; // 👈 NEW IMPORT
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
-
-// ==========================================
-// BOT SETUP (Menu Button + Commands)
-// ==========================================
 
 async function setupBotMenu(env) {
   const BOT_TOKEN = env.BOT_TOKEN;
@@ -27,9 +24,7 @@ async function setupBotMenu(env) {
     await fetch(`${TELEGRAM_API_URL}/setChatMenuButton`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        menu_button: { type: "commands" }
-      })
+      body: JSON.stringify({ menu_button: { type: "commands" } })
     });
     
     await fetch(`${TELEGRAM_API_URL}/setMyCommands`, {
@@ -48,10 +43,6 @@ async function setupBotMenu(env) {
     console.error("Menu setup error:", error);
   }
 }
-
-// ==========================================
-// MAIN WORKER
-// ==========================================
 
 export default {
   async fetch(request, env, ctx) {
@@ -77,18 +68,20 @@ export default {
   },
 };
 
-// ==========================================
-// UPDATE HANDLER
-// ==========================================
-
 async function handleUpdate(update, env, ctx) {
-  // Handle button clicks (Search, Artists, Profile buttons, etc.)
+  // 👈 1. Handle Inline Queries (When typing @bot ...)
+  if (update.inline_query) {
+    await handleInlineQuery(update.inline_query, env);
+    return;
+  }
+  
+  // 2. Handle Button Clicks
   if (update.callback_query) {
     await handleCallbackQuery(update.callback_query, env, ctx);
     return;
   }
   
-  // Handle text messages and commands
+  // 3. Handle Text Messages
   if (update.message) {
     await handleMessage(update.message, env, ctx);
   }
