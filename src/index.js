@@ -95,9 +95,8 @@ async function handleUpdate(update, env, ctx) {
     if (text.startsWith("/start ")) {
       const requestId = text.replace("/start ", "").trim();
       
-      // --- INLINE DEEP LINKS (FIXED PARSING) ---
+      // --- INLINE DEEP LINKS (Short & Safe Format) ---
       if (requestId.startsWith("inline_")) {
-        // The format is: inline_type_id_timestamp_userId
         const parts = requestId.split("_");
         const type = parts[1]; // track, artist, album, etc.
         const id = parts[2];   // The ID
