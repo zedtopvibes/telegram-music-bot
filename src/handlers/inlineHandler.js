@@ -4,27 +4,15 @@ export async function handleInlineQuery(inlineQuery, env) {
   const BOT_USERNAME = env.BOT_USERNAME || "zedtopvibesbot";
   
   let rawQuery = inlineQuery.query.trim();
-  let searchType = "global"; // global, artist, album, ep, playlist
+  let searchType = "global"; 
   let searchTerm = "";
 
-  // 1. Detect the prefix
-  if (rawQuery.startsWith(".art ")) {
-    searchType = "artist";
-    searchTerm = rawQuery.replace(".art ", "").trim();
-  } else if (rawQuery.startsWith(".al ")) {
-    searchType = "album";
-    searchTerm = rawQuery.replace(".al ", "").trim();
-  } else if (rawQuery.startsWith(".ep ")) {
-    searchType = "ep";
-    searchTerm = rawQuery.replace(".ep ", "").trim();
-  } else if (rawQuery.startsWith(".pl ")) {
-    searchType = "playlist";
-    searchTerm = rawQuery.replace(".pl ", "").trim();
-  } else {
-    searchTerm = rawQuery;
-  }
+  if (rawQuery.startsWith(".art ")) { searchType = "artist"; searchTerm = rawQuery.replace(".art ", "").trim(); }
+  else if (rawQuery.startsWith(".al ")) { searchType = "album"; searchTerm = rawQuery.replace(".al ", "").trim(); }
+  else if (rawQuery.startsWith(".ep ")) { searchType = "ep"; searchTerm = rawQuery.replace(".ep ", "").trim(); }
+  else if (rawQuery.startsWith(".pl ")) { searchType = "playlist"; searchTerm = rawQuery.replace(".pl ", "").trim(); }
+  else { searchTerm = rawQuery; }
 
-  // If the user just typed "@bot " or "@bot .art " without a search term
   if (!searchTerm) {
     await fetch(`${TELEGRAM_API}/answerInlineQuery`, {
       method: "POST",
@@ -36,9 +24,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           id: "start",
           title: searchType === "global" ? "🔍 Type a song or artist..." : `🔍 Type a ${searchType} name...`,
           description: "Keep typing to see results",
-          input_message_content: {
-            message_text: "🎵 Please type a search term to find music."
-          }
+          input_message_content: { message_text: "🎵 Please type a search term to find music." }
         }]
       })
     });
@@ -49,14 +35,8 @@ export async function handleInlineQuery(inlineQuery, env) {
   const results = [];
 
   try {
-    // 2. Fetch based on the search type
     if (searchType === "global" || searchType === "artist") {
-      const artists = await env.DB.prepare(`
-        SELECT id, name FROM artists 
-        WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
-        LIMIT 5
-      `).bind(term).all();
-
+      const artists = await env.DB.prepare(`SELECT id, name FROM artists WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       artists.results?.forEach(artist => {
         results.push({
           type: "article",
@@ -67,23 +47,16 @@ export async function handleInlineQuery(inlineQuery, env) {
             message_text: `🎤 <b>Artist: ${artist.name}</b>\n\nOpen the bot to listen to their music!`,
             parse_mode: "HTML"
           },
-          // 👇 FIXED: reply_markup is now at the top level of the result object
+          // 👇 THE FIX: reply_markup is correctly placed here
           reply_markup: {
-            inline_keyboard: [[
-              { text: "👤 View Artist in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_artist_${artist.id}` }
-            ]]
+            inline_keyboard: [[{ text: "👤 View Artist in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_artist_${artist.id}` }]]
           }
         });
       });
     }
 
     if (searchType === "global" || searchType === "album") {
-      const albums = await env.DB.prepare(`
-        SELECT id, title FROM albums 
-        WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published'
-        LIMIT 5
-      `).bind(term).all();
-
+      const albums = await env.DB.prepare(`SELECT id, title FROM albums WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       albums.results?.forEach(album => {
         results.push({
           type: "article",
@@ -95,21 +68,14 @@ export async function handleInlineQuery(inlineQuery, env) {
             parse_mode: "HTML"
           },
           reply_markup: {
-            inline_keyboard: [[
-              { text: "💿 View Album in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_album_${album.id}` }
-            ]]
+            inline_keyboard: [[{ text: "💿 View Album in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_album_${album.id}` }]]
           }
         });
       });
     }
 
     if (searchType === "global" || searchType === "ep") {
-      const eps = await env.DB.prepare(`
-        SELECT id, title FROM eps 
-        WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published'
-        LIMIT 5
-      `).bind(term).all();
-
+      const eps = await env.DB.prepare(`SELECT id, title FROM eps WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       eps.results?.forEach(ep => {
         results.push({
           type: "article",
@@ -121,21 +87,14 @@ export async function handleInlineQuery(inlineQuery, env) {
             parse_mode: "HTML"
           },
           reply_markup: {
-            inline_keyboard: [[
-              { text: "🎵 View EP in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_ep_${ep.id}` }
-            ]]
+            inline_keyboard: [[{ text: "🎵 View EP in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_ep_${ep.id}` }]]
           }
         });
       });
     }
 
     if (searchType === "global" || searchType === "playlist") {
-      const playlists = await env.DB.prepare(`
-        SELECT id, name FROM playlists 
-        WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
-        LIMIT 5
-      `).bind(term).all();
-
+      const playlists = await env.DB.prepare(`SELECT id, name FROM playlists WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       playlists.results?.forEach(pl => {
         results.push({
           type: "article",
@@ -147,15 +106,12 @@ export async function handleInlineQuery(inlineQuery, env) {
             parse_mode: "HTML"
           },
           reply_markup: {
-            inline_keyboard: [[
-              { text: "📋 View Playlist in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_playlist_${pl.id}` }
-            ]]
+            inline_keyboard: [[{ text: "📋 View Playlist in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_playlist_${pl.id}` }]]
           }
         });
       });
     }
 
-    // Global search also includes Tracks
     if (searchType === "global") {
       const tracks = await env.DB.prepare(`
         SELECT t.id, t.title, a.name as artist_name
@@ -165,7 +121,7 @@ export async function handleInlineQuery(inlineQuery, env) {
         WHERE t.title LIKE ? AND t.deleted_at IS NULL AND t.status = 'published'
         LIMIT 5
       `).bind(term).all();
-
+      
       tracks.results?.forEach(track => {
         results.push({
           type: "article",
@@ -177,9 +133,7 @@ export async function handleInlineQuery(inlineQuery, env) {
             parse_mode: "HTML"
           },
           reply_markup: {
-            inline_keyboard: [[
-              { text: "📥 Get Track in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_track_${track.id}` }
-            ]]
+            inline_keyboard: [[{ text: "📥 Get Track in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_track_${track.id}` }]]
           }
         });
       });
@@ -189,7 +143,6 @@ export async function handleInlineQuery(inlineQuery, env) {
     console.error("Inline Search Error:", error);
   }
 
-  // Send results back to Telegram
   await fetch(`${TELEGRAM_API}/answerInlineQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
