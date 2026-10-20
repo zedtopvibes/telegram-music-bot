@@ -1,16 +1,13 @@
 export async function handleStart(chatId, firstName, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-  const BOT_USERNAME = env.BOT_USERNAME || "zedtopvibesbot"; // Use your actual bot username here!
   
-  const welcomeText = `Hello ${firstName}! 👋 Welcome to ZedTopVibes 🎵\n\nDiscover Zambia's best music on Telegram! 🇿🇲🎧\n\n<i>Tip: Click a button below, then type your search and hit send!</i>`;
+  const welcomeText = `Hello ${firstName}! 👋 Welcome to ZedTopVibes 🎵\n\nDiscover Zambia's best music on Telegram! 🇿🇲🎧`;
   
   const keyboard = {
     inline_keyboard: [
       [
-        // Empty string opens the keyboard with just "@zedtopvibesbot "
         { text: "🔍 Search", switch_inline_query_current_chat: "" },
-        // ".art " opens the keyboard with "@zedtopvibesbot .art "
         { text: "🎤 Artists", switch_inline_query_current_chat: ".art " }
       ],
       [
@@ -22,7 +19,7 @@ export async function handleStart(chatId, firstName, env, replyToMessageId = nul
         { text: "📅 By Year", switch_inline_query_current_chat: ".yr " }
       ],
       [
-        { text: "🆕 New Releases", callback_data: "new_releases" },
+        { text: "🆕 New", callback_data: "new_releases" },
         { text: "❓ Help", callback_data: "help" }
       ],
       [
