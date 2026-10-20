@@ -12,7 +12,7 @@ import { showNewReleases } from "./commands/newreleases.js";
 import { handleStats } from "./commands/stats.js";
 import { handleCallbackQuery } from "./handlers/callbackQuery.js";
 import { handleMessage } from "./handlers/messageHandler.js";
-import { handleInlineQuery } from "./handlers/inlineHandler.js"; // 👈 NEW IMPORT
+import { handleInlineQuery } from "./handlers/inlineHandler.js"; 
 import { handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist, handleTrack as handleTrackDirect } from "./handlers/contentHandlers.js";
 import { getDeepLink } from "./utils/deepLinks.js";
 import { checkSubscription } from "./middleware/checkSubscription.js";
@@ -95,7 +95,7 @@ async function handleUpdate(update, env, ctx) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
-  // 👇 HANDLE INLINE QUERIES (The new inline feature)
+  // Handle Inline Queries (The new inline feature)
   if (update.inline_query) {
     await handleInlineQuery(update.inline_query, env);
     return;
@@ -118,42 +118,34 @@ async function handleUpdate(update, env, ctx) {
     if (text.startsWith("/start ")) {
       const requestId = text.replace("/start ", "").trim();
       
-      // 👇 NEW: Handle Inline Mode Deep Links
-      if (requestId.startsWith("inline_track_")) {
-        const trackId = requestId.replace("inline_track_", "");
-        const fakeCallback = { id: Date.now().toString(), data: `track_${trackId}`, message: { chat: { id: chatId } } };
-        await handleTrackDirect(fakeCallback, env, ctx);
-        return;
-      }
-      
-      if (requestId.startsWith("inline_artist_")) {
-        const artistId = requestId.replace("inline_artist_", "");
-        const fakeCallback = { id: Date.now().toString(), data: `artist_${artistId}`, message: { chat: { id: chatId } } };
-        await handleArtist(fakeCallback, env);
-        return;
-      }
+      // 👇 FIXED: Handle Inline Mode Deep Links
+      if (requestId.startsWith("inline_")) {
+        const parts = requestId.split("_");
+        const type = parts[1];
+        const id = parts[2];
 
-      if (requestId.startsWith("inline_album_")) {
-        const albumId = requestId.replace("inline_album_", "");
-        const fakeCallback = { id: Date.now().toString(), data: `album_${albumId}`, message: { chat: { id: chatId } } };
-        await handleAlbum(fakeCallback, env);
-        return;
-      }
+        const fakeCallback = { 
+          id: Date.now().toString(), 
+          data: `${type}_${id}`, 
+          from: update.message.from,
+          message: { chat: { id: chatId } } 
+        };
 
-      if (requestId.startsWith("inline_ep_")) {
-        const epId = requestId.replace("inline_ep_", "");
-        const fakeCallback = { id: Date.now().toString(), data: `ep_${epId}`, message: { chat: { id: chatId } } };
-        await handleEp(fakeCallback, env);
+        if (type === "track") {
+          await handleTrackDirect(fakeCallback, env, ctx);
+        } else if (type === "artist") {
+          await handleArtist(fakeCallback, env);
+        } else if (type === "album") {
+          await handleAlbum(fakeCallback, env);
+        } else if (type === "ep") {
+          await handleEp(fakeCallback, env);
+        } else if (type === "playlist") {
+          await handlePlaylist(fakeCallback, env);
+        }
+        
         return;
       }
-
-      if (requestId.startsWith("inline_playlist_")) {
-        const playlistId = requestId.replace("inline_playlist_", "");
-        const fakeCallback = { id: Date.now().toString(), data: `playlist_${playlistId}`, message: { chat: { id: chatId } } };
-        await handlePlaylist(fakeCallback, env);
-        return;
-      }
-      // 👆 END OF NEW BLOCK
+      // 👆 END OF FIX
 
       // Existing deep link logic
       const request = getDeepLink(requestId);
@@ -226,6 +218,7 @@ async function handleUpdate(update, env, ctx) {
         const fakeCallback = {
           id: Date.now().toString(),
           data: `track_${request.trackData.id}`,
+          from: update.message.from,
           message: { chat: { id: chatId } }
         };
         await handleTrackDirect(fakeCallback, env, ctx);
@@ -248,6 +241,7 @@ async function handleUpdate(update, env, ctx) {
         const fakeCallback = {
           id: Date.now().toString(),
           data: `getall_album_${request.trackData.id}`,
+          from: update.message.from,
           message: { chat: { id: chatId } }
         };
         await handleGetAllAlbum(fakeCallback, env, ctx);
@@ -270,6 +264,7 @@ async function handleUpdate(update, env, ctx) {
         const fakeCallback = {
           id: Date.now().toString(),
           data: `getall_ep_${request.trackData.id}`,
+          from: update.message.from,
           message: { chat: { id: chatId } }
         };
         await handleGetAllEp(fakeCallback, env, ctx);
@@ -292,6 +287,7 @@ async function handleUpdate(update, env, ctx) {
         const fakeCallback = {
           id: Date.now().toString(),
           data: `getall_playlist_${request.trackData.id}`,
+          from: update.message.from,
           message: { chat: { id: chatId } }
         };
         await handleGetAllPlaylist(fakeCallback, env, ctx);
