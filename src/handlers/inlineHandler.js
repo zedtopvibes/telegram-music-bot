@@ -3,39 +3,18 @@ export async function handleInlineQuery(inlineQuery, env) {
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   const IMAGE_CDN = "https://zedtopvibes.com";
   
-  // 1. Get the raw query and convert to lowercase for easy matching
-  const rawQuery = inlineQuery.query.trim().toLowerCase();
-  
+  let rawQuery = inlineQuery.query.trim().toLowerCase();
   let searchType = "global"; 
-  let searchTerm = rawQuery;
+  let searchTerm = "";
 
-  // 2. Foolproof Prefix Detection
-  if (rawQuery.match(/^\.art\s*/)) {
-    searchType = "artist";
-    searchTerm = rawQuery.replace(/^\.art\s*/, "");
-  } else if (rawQuery.match(/^\.al\s*/)) {
-    searchType = "album";
-    searchTerm = rawQuery.replace(/^\.al\s*/, "");
-  } else if (rawQuery.match(/^\.pl\s*/)) {
-    searchType = "playlist";
-    searchTerm = rawQuery.replace(/^\.pl\s*/, "");
-  } else if (rawQuery.match(/^\.ep\s*/)) {
-    searchType = "ep";
-    searchTerm = rawQuery.replace(/^\.ep\s*/, "");
-  } else if (rawQuery.match(/^\.trk\s*/)) {
-    searchType = "track";
-    searchTerm = rawQuery.replace(/^\.trk\s*/, "");
-  }
+  if (rawQuery.match(/^\.art\s*/)) { searchType = "artist"; searchTerm = rawQuery.replace(/^\.art\s*/, ""); }
+  else if (rawQuery.match(/^\.al\s*/)) { searchType = "album"; searchTerm = rawQuery.replace(/^\.al\s*/, ""); }
+  else if (rawQuery.match(/^\.pl\s*/)) { searchType = "playlist"; searchTerm = rawQuery.replace(/^\.pl\s*/, ""); }
+  else if (rawQuery.match(/^\.ep\s*/)) { searchType = "ep"; searchTerm = rawQuery.replace(/^\.ep\s*/, ""); }
+  else if (rawQuery.match(/^\.trk\s*/)) { searchType = "track"; searchTerm = rawQuery.replace(/^\.trk\s*/, ""); }
+  else { searchTerm = rawQuery; }
 
-  // 3. If the user hasn't typed a search term yet
   if (!searchTerm) {
-    let placeholder = "🔍 Type a name to search...";
-    if (searchType === "artist") placeholder = "🎤 Type an artist name...";
-    if (searchType === "album") placeholder = "💿 Type an album name...";
-    if (searchType === "playlist") placeholder = "📋 Type a playlist name...";
-    if (searchType === "ep") placeholder = "🎵 Type an EP name...";
-    if (searchType === "track") placeholder = "🎵 Type a track name...";
-
     await fetch(`${TELEGRAM_API}/answerInlineQuery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,8 +23,8 @@ export async function handleInlineQuery(inlineQuery, env) {
         results: [{
           type: "article",
           id: "start",
-          title: placeholder,
-          description: "Keep typing to see results",
+          title: "🔍 Type a name to search...",
+          description: "Keep typing...",
           input_message_content: { message_text: "🎵 Please type a search term." }
         }]
       })
@@ -59,26 +38,20 @@ export async function handleInlineQuery(inlineQuery, env) {
   try {
     // --- ARTISTS ---
     if (searchType === "artist" || searchType === "global") {
-      const artists = await env.DB.prepare(`
-        SELECT id, name, image_url FROM artists WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5
-      `).bind(term).all();
-      
+      const artists = await env.DB.prepare(`SELECT id, name, image_url FROM artists WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       artists.results?.forEach(artist => {
         let imgUrl = artist.image_url;
         if (imgUrl && !imgUrl.startsWith("http")) imgUrl = `${IMAGE_CDN}${imgUrl}`;
         
         results.push({
           type: "article",
-          id: `artist_${artist.id}`,
+          id: `art_${artist.id}`,
           title: `🎤 ${artist.name}`,
-          description: `Tap to view artist profile`,
+          description: `Tap to search for ${artist.name}`,
           thumb_url: imgUrl || undefined,
           input_message_content: {
-            message_text: `🎤 <b>Artist: ${artist.name}</b>\n\nClick below to see their tracks!`,
-            parse_mode: "HTML"
-          },
-          reply_markup: {
-            inline_keyboard: [[{ text: "🎵 View Tracks", callback_data: `artist_${artist.id}` }]]
+            // 👇 THIS IS THE MAGIC: Sends the exact command into the chat
+            message_text: `/artist ${artist.name}`
           }
         });
       });
@@ -86,26 +59,19 @@ export async function handleInlineQuery(inlineQuery, env) {
 
     // --- ALBUMS ---
     if (searchType === "album" || searchType === "global") {
-      const albums = await env.DB.prepare(`
-        SELECT id, title, cover_url FROM albums WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5
-      `).bind(term).all();
-      
+      const albums = await env.DB.prepare(`SELECT id, title, cover_url FROM albums WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       albums.results?.forEach(album => {
         let imgUrl = album.cover_url;
         if (imgUrl && !imgUrl.startsWith("http")) imgUrl = `${IMAGE_CDN}${imgUrl}`;
         
         results.push({
           type: "article",
-          id: `album_${album.id}`,
+          id: `al_${album.id}`,
           title: `💿 ${album.title}`,
-          description: `Tap to view album tracks`,
+          description: `Tap to search for album`,
           thumb_url: imgUrl || undefined,
           input_message_content: {
-            message_text: `💿 <b>Album: ${album.title}</b>\n\nClick below to see the tracklist!`,
-            parse_mode: "HTML"
-          },
-          reply_markup: {
-            inline_keyboard: [[{ text: "📀 View Album", callback_data: `album_${album.id}` }]]
+            message_text: `/album ${album.title}`
           }
         });
       });
@@ -113,26 +79,19 @@ export async function handleInlineQuery(inlineQuery, env) {
 
     // --- PLAYLISTS ---
     if (searchType === "playlist" || searchType === "global") {
-      const playlists = await env.DB.prepare(`
-        SELECT id, name, cover_url FROM playlists WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5
-      `).bind(term).all();
-      
+      const playlists = await env.DB.prepare(`SELECT id, name, cover_url FROM playlists WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       playlists.results?.forEach(pl => {
         let imgUrl = pl.cover_url;
         if (imgUrl && !imgUrl.startsWith("http")) imgUrl = `${IMAGE_CDN}${imgUrl}`;
         
         results.push({
           type: "article",
-          id: `playlist_${pl.id}`,
+          id: `pl_${pl.id}`,
           title: `📋 ${pl.name}`,
-          description: `Tap to view playlist`,
+          description: `Tap to search for playlist`,
           thumb_url: imgUrl || undefined,
           input_message_content: {
-            message_text: `📋 <b>Playlist: ${pl.name}</b>\n\nClick below to see the tracks!`,
-            parse_mode: "HTML"
-          },
-          reply_markup: {
-            inline_keyboard: [[{ text: "📋 View Playlist", callback_data: `playlist_${pl.id}` }]]
+            message_text: `/playlist ${pl.name}`
           }
         });
       });
@@ -140,10 +99,7 @@ export async function handleInlineQuery(inlineQuery, env) {
 
     // --- EPS ---
     if (searchType === "ep" || searchType === "global") {
-      const eps = await env.DB.prepare(`
-        SELECT id, title, cover_url FROM eps WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5
-      `).bind(term).all();
-      
+      const eps = await env.DB.prepare(`SELECT id, title, cover_url FROM eps WHERE title LIKE ? AND deleted_at IS NULL AND status = 'published' LIMIT 5`).bind(term).all();
       eps.results?.forEach(ep => {
         let imgUrl = ep.cover_url;
         if (imgUrl && !imgUrl.startsWith("http")) imgUrl = `${IMAGE_CDN}${imgUrl}`;
@@ -151,15 +107,11 @@ export async function handleInlineQuery(inlineQuery, env) {
         results.push({
           type: "article",
           id: `ep_${ep.id}`,
-          title: `🎵 EP: ${ep.title}`,
-          description: `Tap to view EP tracks`,
+          title: `🎵 ${ep.title}`,
+          description: `Tap to search for EP`,
           thumb_url: imgUrl || undefined,
           input_message_content: {
-            message_text: `🎵 <b>EP: ${ep.title}</b>\n\nClick below to see the tracks!`,
-            parse_mode: "HTML"
-          },
-          reply_markup: {
-            inline_keyboard: [[{ text: "🎵 View EP", callback_data: `ep_${ep.id}` }]]
+            message_text: `/ep ${ep.title}`
           }
         });
       });
@@ -181,29 +133,14 @@ export async function handleInlineQuery(inlineQuery, env) {
         
         results.push({
           type: "article",
-          id: `track_${track.id}`,
+          id: `trk_${track.id}`,
           title: `🎵 ${track.title}`,
           description: `Artist: ${track.artist_name || "Unknown"}`,
           thumb_url: imgUrl || undefined,
           input_message_content: {
-            message_text: `🎵 <b>${track.title}</b>\n👤 ${track.artist_name || "Unknown"}\n\nClick below to download!`,
-            parse_mode: "HTML"
-          },
-          reply_markup: {
-            inline_keyboard: [[{ text: "📥 Download Track", callback_data: `track_${track.id}` }]]
+            message_text: `/track ${track.title}`
           }
         });
-      });
-    }
-
-    // If no results found
-    if (results.length === 0) {
-      results.push({
-        type: "article",
-        id: "no_results",
-        title: "❌ No results found",
-        description: `Nothing matched "${searchTerm}"`,
-        input_message_content: { message_text: `❌ No results found for "${searchTerm}"` }
       });
     }
 
@@ -211,7 +148,6 @@ export async function handleInlineQuery(inlineQuery, env) {
     console.error("Inline Search Error:", error);
   }
 
-  // Send results
   await fetch(`${TELEGRAM_API}/answerInlineQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
