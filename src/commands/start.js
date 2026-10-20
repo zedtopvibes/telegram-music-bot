@@ -1,23 +1,22 @@
 export async function handleStart(chatId, firstName, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-  const BOT_USERNAME = env.BOT_USERNAME; // Make sure you have this in your env vars!
   
-  const welcomeText = `Hello ${firstName}! 👋 Welcome to ZedTopVibes 🎵\n\nDiscover Zambia's best music on Telegram! 🇿🇲🎧\n\n<i>Tip: Click a button below, then type your search and hit send!</i>`;
+  const welcomeText = `Hello ${firstName}! 👋 Welcome to ZedTopVibes 🎵\n\nDiscover Zambia's best music on Telegram! 🇿🇲🎧`;
   
   const keyboard = {
     inline_keyboard: [
       [
-        { text: "🔍 Search", switch_inline_query_current_chat: "" },
-        { text: "🎤 Artists", switch_inline_query_current_chat: ".art " }
+        { text: "🔍 Search", callback_data: "search" },
+        { text: "🎤 Artists", callback_data: "list_artists" }
       ],
       [
-        { text: "💿 Albums", switch_inline_query_current_chat: ".al " },
-        { text: "🎵 EPs", switch_inline_query_current_chat: ".ep " }
+        { text: "💿 Albums", callback_data: "list_albums" },
+        { text: "🎵 EPs", callback_data: "list_eps" }
       ],
       [
-        { text: "📋 Playlists", switch_inline_query_current_chat: ".pl " },
-        { text: "🆕 New", callback_data: "new_releases" } // This one stays as a normal button
+        { text: "📋 Playlists", callback_data: "list_playlists" },
+        { text: "🆕 New", callback_data: "new_releases" }
       ],
       [
         { text: "📆 By Year", callback_data: "browse_years" },
