@@ -24,7 +24,7 @@ export async function handleInlineQuery(inlineQuery, env) {
     searchTerm = rawQuery;
   }
 
-  // If the user just typed "@bot " or "@bot .art " without a search term, show a placeholder
+  // If the user just typed "@bot " or "@bot .art " without a search term
   if (!searchTerm) {
     await fetch(`${TELEGRAM_API}/answerInlineQuery`, {
       method: "POST",
@@ -52,7 +52,7 @@ export async function handleInlineQuery(inlineQuery, env) {
     // 2. Fetch based on the search type
     if (searchType === "global" || searchType === "artist") {
       const artists = await env.DB.prepare(`
-        SELECT id, name, image_url FROM artists 
+        SELECT id, name FROM artists 
         WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
         LIMIT 5
       `).bind(term).all();
@@ -67,6 +67,7 @@ export async function handleInlineQuery(inlineQuery, env) {
             message_text: `🎤 <b>Artist: ${artist.name}</b>\n\nOpen the bot to listen to their music!`,
             parse_mode: "HTML"
           },
+          // 👇 FIXED: reply_markup is now at the top level of the result object
           reply_markup: {
             inline_keyboard: [[
               { text: "👤 View Artist in PM", url: `https://t.me/${BOT_USERNAME}?start=inline_artist_${artist.id}` }
