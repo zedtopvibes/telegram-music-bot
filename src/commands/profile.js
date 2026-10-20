@@ -21,6 +21,7 @@ export async function handleProfile(chatId, env, messageId, view = "main") {
     else if (downloads >= 50) badge = "🔥 Music Lover";
     else if (downloads >= 10) badge = "🎧 Listener";
 
+    // Default main profile text
     let text = `👤 <b>Your Profile</b>
 
 📛 <b>Name:</b> ${user.first_name || "User"}
