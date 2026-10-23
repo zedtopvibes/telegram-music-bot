@@ -5,7 +5,7 @@ export async function handleArtist(chatId, artistName, env, replyToMessageId = n
   
   // 1. Search for artist
   const artistQuery = `
-    SELECT id, name, country, image_url, created_at
+    SELECT id, name, image_url, created_at
     FROM artists
     WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
     LIMIT 1
@@ -35,27 +35,26 @@ export async function handleArtist(chatId, artistName, env, replyToMessageId = n
   // 3. Format the added date
   const addedDate = artistResult.created_at ? artistResult.created_at.split(" ")[0] : "Unknown";
 
-  // 4. Build the new clean caption
-  const caption = `👤 <b>Artist:</b> ${artistResult.name}\n\n💿 <b>Total Songs:</b> ${totalSongs}\n🗓️ <b>Profile Added:</b> ${addedDate}`;
+  // 4. Build the new clean caption (No spaces between lines!)
+  const caption = `👤 <b>Artist:</b> ${artistResult.name}\n💿 <b>Songs:</b> ${totalSongs}\n🗓️ <b>Joined:</b> ${addedDate}`;
 
-  // 5. Build the buttons
-  const buttons = [
-    [
-      { text: "Related", callback_data: `artist_related_${artistResult.id}` },
-      { text: "Follow", callback_data: `artist_follow_${artistResult.id}` }
-    ],
-    [
-      { text: "Albums", callback_data: `artist_albums_${artistResult.id}` },
-      { text: "Songs", callback_data: `artist_songs_${artistResult.id}` }
-    ],
-    [
-      { text: "Close", callback_data: "delete_message" }
-    ]
-  ];
-
+ // 5. Build the buttons with emojis (Albums/Songs on top)
+const buttons = [
+  [
+    { text: "💿 Albums", callback_data: `artist_albums_${artistResult.id}` },
+    { text: "🎵 Songs", callback_data: `artist_songs_${artistResult.id}` }
+  ],
+  [
+    { text: "🔗 Related", callback_data: `artist_related_${artistResult.id}` },
+    { text: "➕ Follow", callback_data: `artist_follow_${artistResult.id}` }
+  ],
+  [
+    { text: "❌ Close", callback_data: "delete_message" }
+  ]
+];
   const keyboard = { inline_keyboard: buttons };
 
-  // 6. Send with Photo (NO reply_to_message_id to prevent the quote box!)
+  // 6. Send with Photo (No reply_to_message_id to prevent quote box)
   let fullImageUrl = artistResult.image_url;
   if (fullImageUrl && !fullImageUrl.startsWith("http")) {
     fullImageUrl = `${IMAGE_CDN}${fullImageUrl}`;
@@ -74,7 +73,7 @@ export async function handleArtist(chatId, artistName, env, replyToMessageId = n
       })
     });
   } else {
-    // Fallback to text if no image
+    // Fallback to text if no image is found
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
