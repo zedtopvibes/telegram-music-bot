@@ -1,19 +1,13 @@
 export async function handleArtist(chatId, artistName, env, replyToMessageId = null) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+  const IMAGE_CDN = "https://zedtopvibes.com";
   
-  // Search for artist by name
+  // 1. Search for artist
   const artistQuery = `
-    SELECT 
-      id,
-      name,
-      bio,
-      country,
-      image_url
+    SELECT id, name, country, image_url, created_at
     FROM artists
-    WHERE name LIKE ?
-      AND deleted_at IS NULL
-      AND status = 'published'
+    WHERE name LIKE ? AND deleted_at IS NULL AND status = 'published'
     LIMIT 1
   `;
   
@@ -21,97 +15,75 @@ export async function handleArtist(chatId, artistName, env, replyToMessageId = n
   const artistResult = await env.DB.prepare(artistQuery).bind(searchTerm).first();
   
   if (!artistResult) {
-    const requestBody = {
-      chat_id: chatId,
-      text: `❌ Artist "${artistName}" not found.`
-    };
-    if (replyToMessageId) {
-      requestBody.reply_to_message_id = replyToMessageId;
-    }
-    
     await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({ chat_id: chatId, text: `❌ Artist "${artistName}" not found.` })
     });
     return;
   }
   
-  // Get tracks by this artist
+  // 2. Get total song count
   const tracksQuery = `
-    SELECT 
-      t.id,
-      t.title,
-      t.slug
-    FROM tracks t
+    SELECT COUNT(*) as total FROM tracks t
     LEFT JOIN track_artists ta ON t.id = ta.track_id
-    WHERE ta.artist_id = ?
-      AND t.deleted_at IS NULL
-      AND t.status = 'published'
-    GROUP BY t.id
-    ORDER BY t.title
-    LIMIT 20
+    WHERE ta.artist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
   `;
-  
-  const tracksResult = await env.DB.prepare(tracksQuery).bind(artistResult.id).all();
-  
-  // Build response message
-  let responseText = `🎤 ${artistResult.name}\n\n`;
-  
-  if (artistResult.bio) {
-    responseText += `${artistResult.bio}\n\n`;
-  }
-  
-  if (artistResult.country) {
-    responseText += `📍 Country: ${artistResult.country}\n\n`;
-  }
-  
-  responseText += `🎵 Tracks:\n\n`;
-  
-  // Build inline keyboard buttons for tracks
-  const buttons = [];
+  const tracksResult = await env.DB.prepare(tracksQuery).bind(artistResult.id).first();
+  const totalSongs = tracksResult.total || 0;
 
-  // 👇 ADDING THE NEW BUTTONS HERE
-  buttons.push([
-    { text: "Related", callback_data: `artist_related_${artistResult.id}` },
-    { text: "Follow", callback_data: `artist_follow_${artistResult.id}` }
-  ]);
-  buttons.push([
-    { text: "Albums", callback_data: `artist_albums_${artistResult.id}` },
-    { text: "Songs", callback_data: `artist_songs_${artistResult.id}` }
-  ]);
-  // 👆 END OF NEW BUTTONS
-  
-  if (tracksResult.results && tracksResult.results.length > 0) {
-    tracksResult.results.forEach((track, index) => {
-      const number = index + 1;
-      responseText += `${number}. ${track.title}\n`;
-      buttons.push([{ text: `🎵 ${track.title}`, callback_data: `track_${track.id}` }]);
+  // 3. Format the added date
+  const addedDate = artistResult.created_at ? artistResult.created_at.split(" ")[0] : "Unknown";
+
+  // 4. Build the new clean caption
+  const caption = `👤 <b>Artist:</b> ${artistResult.name}\n\n💿 <b>Total Songs:</b> ${totalSongs}\n🗓️ <b>Profile Added:</b> ${addedDate}`;
+
+  // 5. Build the buttons
+  const buttons = [
+    [
+      { text: "Related", callback_data: `artist_related_${artistResult.id}` },
+      { text: "Follow", callback_data: `artist_follow_${artistResult.id}` }
+    ],
+    [
+      { text: "Albums", callback_data: `artist_albums_${artistResult.id}` },
+      { text: "Songs", callback_data: `artist_songs_${artistResult.id}` }
+    ],
+    [
+      { text: "Close", callback_data: "delete_message" }
+    ]
+  ];
+
+  const keyboard = { inline_keyboard: buttons };
+
+  // 6. Send with Photo (NO reply_to_message_id to prevent the quote box!)
+  let fullImageUrl = artistResult.image_url;
+  if (fullImageUrl && !fullImageUrl.startsWith("http")) {
+    fullImageUrl = `${IMAGE_CDN}${fullImageUrl}`;
+  }
+
+  if (fullImageUrl && fullImageUrl !== "null") {
+    await fetch(`${TELEGRAM_API}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: fullImageUrl,
+        caption: caption,
+        parse_mode: "HTML",
+        reply_markup: keyboard
+      })
     });
   } else {
-    responseText += `No tracks found.`;
+    // Fallback to text if no image
+    await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: caption,
+        parse_mode: "HTML",
+        reply_markup: keyboard
+      })
+    });
   }
-  
-  responseText += `\nClick a track button to receive the audio.`;
-  
-  // 👇 ADDING THE SENTENCE CASE CLOSE BUTTON HERE
-  buttons.push([{ text: "Close", callback_data: "delete_message" }]);
-  
-  const keyboard = { inline_keyboard: buttons };
-  
-  const requestBody = {
-    chat_id: chatId,
-    text: responseText,
-    reply_markup: keyboard
-  };
-  
-  if (replyToMessageId) {
-    requestBody.reply_to_message_id = replyToMessageId;
-  }
-  
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody)
-  });
 }
