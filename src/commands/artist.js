@@ -70,6 +70,17 @@ export async function handleArtist(chatId, artistName, env, replyToMessageId = n
   
   // Build inline keyboard buttons for tracks
   const buttons = [];
+
+  // 👇 ADDING THE NEW BUTTONS HERE
+  buttons.push([
+    { text: "Related", callback_data: `artist_related_${artistResult.id}` },
+    { text: "Follow", callback_data: `artist_follow_${artistResult.id}` }
+  ]);
+  buttons.push([
+    { text: "Albums", callback_data: `artist_albums_${artistResult.id}` },
+    { text: "Songs", callback_data: `artist_songs_${artistResult.id}` }
+  ]);
+  // 👆 END OF NEW BUTTONS
   
   if (tracksResult.results && tracksResult.results.length > 0) {
     tracksResult.results.forEach((track, index) => {
@@ -82,6 +93,9 @@ export async function handleArtist(chatId, artistName, env, replyToMessageId = n
   }
   
   responseText += `\nClick a track button to receive the audio.`;
+  
+  // 👇 ADDING THE SENTENCE CASE CLOSE BUTTON HERE
+  buttons.push([{ text: "Close", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
   
