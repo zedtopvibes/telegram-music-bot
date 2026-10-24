@@ -1,4 +1,4 @@
-import { handleList, handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
+import { handleList, handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js"; 
 import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
