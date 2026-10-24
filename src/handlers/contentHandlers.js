@@ -43,6 +43,112 @@ async function sendPhotoWithCaption(chatId, imageUrl, caption, env) {
   }
 }
 
+
+// 👇 NEW: The Artist List with A-Z Filter
+export async function handleList(chatId, listType, page, env, filterLetter = "") {
+  const BOT_TOKEN = env.BOT_TOKEN;
+  const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+  
+  const ITEMS_PER_PAGE = 10;
+  const offset = (page - 1) * ITEMS_PER_PAGE;
+  
+  let query = "";
+  let countQuery = "";
+  let title = "";
+  let emoji = "";
+  let itemNameField = "";
+  let filterCondition = "";
+  
+  if (listType === "artists") {
+    if (filterLetter && filterLetter !== "ALL") {
+      filterCondition = `AND name LIKE '${filterLetter}%'`;
+    }
+    query = `SELECT id, name FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition} ORDER BY name LIMIT ? OFFSET ?`;
+    countQuery = `SELECT COUNT(*) as total FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition}`;
+    title = "🎤 Artists";
+    emoji = "🎤";
+    itemNameField = "name";
+  } else if (listType === "albums") {
+    query = `SELECT id, title FROM albums WHERE deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT ? OFFSET ?`;
+    countQuery = `SELECT COUNT(*) as total FROM albums WHERE deleted_at IS NULL AND status = 'published'`;
+    title = "💿 Albums"; emoji = "💿"; itemNameField = "title";
+  } else if (listType === "eps") {
+    query = `SELECT id, title FROM eps WHERE deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT ? OFFSET ?`;
+    countQuery = `SELECT COUNT(*) as total FROM eps WHERE deleted_at IS NULL AND status = 'published'`;
+    title = "🎵 EPs"; emoji = "🎵"; itemNameField = "title";
+  } else if (listType === "playlists") {
+    query = `SELECT id, name FROM playlists WHERE deleted_at IS NULL AND status = 'published' ORDER BY name LIMIT ? OFFSET ?`;
+    countQuery = `SELECT COUNT(*) as total FROM playlists WHERE deleted_at IS NULL AND status = 'published'`;
+    title = "📋 Playlists"; emoji = "📋"; itemNameField = "name";
+  }
+  
+  const [items, countResult] = await Promise.all([
+    env.DB.prepare(query).bind(ITEMS_PER_PAGE, offset).all(),
+    env.DB.prepare(countQuery).first()
+  ]);
+  
+  const totalItems = countResult.total;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  
+  let responseText = `${emoji} <b>${title}</b> (Page ${page}/${totalPages})\n\n`;
+  
+  if (items.results && items.results.length > 0) {
+    items.results.forEach((item, index) => {
+      responseText += `${offset + index + 1}. ${item[itemNameField]}\n`;
+    });
+  } else {
+    responseText += `No ${listType} found.`;
+  }
+  
+  const buttons = [];
+  
+  // Add Alphabet ONLY for artists
+  if (listType === "artists") {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    let row = [];
+    letters.forEach((letter, index) => {
+      row.push({ text: letter, callback_data: `filter_artists_${letter}_1` });
+      if (row.length === 7 || index === letters.length - 1) {
+        buttons.push(row);
+        row = [];
+      }
+    });
+    buttons.push([{ text: "🔙 Show All Artists", callback_data: `filter_artists_ALL_1` }]);
+    buttons.push([{ text: "--- Select Artist ---", callback_data: "noop" }]);
+  }
+  
+  if (items.results) {
+    items.results.forEach((item) => {
+      buttons.push([{ text: `${emoji} ${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` }]);
+    });
+  }
+  
+  const paginationRow = [];
+  if (page > 1) {
+    paginationRow.push({ text: "◀️ Previous", callback_data: `page_${listType}_${page - 1}_${filterLetter}` });
+  }
+  paginationRow.push({ text: `${page}/${totalPages}`, callback_data: "noop" });
+  if (page < totalPages) {
+    paginationRow.push({ text: "Next ▶️", callback_data: `page_${listType}_${page + 1}_${filterLetter}` });
+  }
+  if (paginationRow.length > 1) buttons.push(paginationRow);
+  
+  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
+  
+  const keyboard = { inline_keyboard: buttons };
+  
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: responseText, parse_mode: "HTML", reply_markup: keyboard })
+  });
+  
+  const responseData = await response.json();
+  return { message_id: responseData.result?.message_id };
+}
+
+
+
 export async function handleArtist(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
