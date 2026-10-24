@@ -1,8 +1,7 @@
-import { handleList } from "../commands/list.js";
+import { handleList, handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
 import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
-import { handleArtist, handleAlbum, handleEp, handlePlaylist, handleTrack, handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./contentHandlers.js";
 import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchPromptId } from "../utils/userState.js";
 import { checkSubscription } from "../middleware/checkSubscription.js";
 import { trackUser } from "../utils/userTracker.js"; 
@@ -37,7 +36,6 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
-    
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/deleteMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,15 +82,10 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
     const response = await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "🔍 Send me a song name, artist, album, EP, or playlist name to search."
-      })
+      body: JSON.stringify({ chat_id: chatId, text: "🔍 Send me a song name, artist, album, EP, or playlist name to search." })
     });
     const responseData = await response.json();
-    if (responseData.result) {
-      setSearchPromptId(chatId, responseData.result.message_id);
-    }
+    if (responseData.result) setSearchPromptId(chatId, responseData.result.message_id);
     return;
   }
   
@@ -129,7 +122,7 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `❓ Help Guide\n\nAvailable Commands:\n/track [name] - Search for tracks\n/artist [name] - View artist profile\n/album [name] - View album\n/ep [name] - View EP\n/playlist [name] - View playlist\n\nOr simply type any artist or song name to search!`
+        text: `❓ Help Guide\n\n/track [name]\n/artist [name]\n/album [name]\n/ep [name]\n/playlist [name]\n\nOr type any name to search!`
       })
     });
     const responseData = await response.json();
@@ -264,60 +257,57 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
     if (result && result.message_id) setLastMessageId(chatId, result.message_id);
     return;
   }
-  
-  if (data.startsWith("page_")) {
+
+  // 👇 NEW: Handle Alphabet Filter Click
+  if (data.startsWith("filter_artists_")) {
     const parts = data.split("_");
-    const listType = parts[1];
-    const page = parseInt(parts[2]);
+    const letter = parts[2];
+    const page = parseInt(parts[3]);
+    
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
+    
     await deletePreviousMessage(chatId, env);
-    const result = await handleList(chatId, listType, page, env);
-    if (result && result.message_id) setLastMessageId(chatId, result.message_id);
+    
+    const result = await handleList(chatId, "artists", page, env, letter);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
   
-  // CONTENT BUTTONS (Direct download in private chat)
-  if (data.startsWith("track_")) {
-    await handleTrack(callbackQuery, env, ctx);
+  // 👇 UPDATE: Handle Pagination (with filter letter support)
+  if (data.startsWith("page_")) {
+    const parts = data.split("_");
+    const listType = parts[1];
+    const page = parseInt(parts[2]);
+    const filterLetter = parts[3] || ""; 
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    await deletePreviousMessage(chatId, env);
+    
+    const result = await handleList(chatId, listType, page, env, filterLetter);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
     return;
   }
-  
-  if (data.startsWith("artist_")) {
-    await handleArtist(callbackQuery, env);
-    return;
-  }
-  
-  if (data.startsWith("album_")) {
-    await handleAlbum(callbackQuery, env);
-    return;
-  }
-  
-  if (data.startsWith("ep_")) {
-    await handleEp(callbackQuery, env);
-    return;
-  }
-  
-  if (data.startsWith("playlist_")) {
-    await handlePlaylist(callbackQuery, env);
-    return;
-  }
-  
-  if (data.startsWith("getall_album_")) {
-    await handleGetAllAlbum(callbackQuery, env, ctx);
-    return;
-  }
-  
-  if (data.startsWith("getall_ep_")) {
-    await handleGetAllEp(callbackQuery, env, ctx);
-    return;
-  }
-  
-  if (data.startsWith("getall_playlist_")) {
-    await handleGetAllPlaylist(callbackQuery, env, ctx);
-    return;
-  }
+
+  // Content buttons
+  if (data.startsWith("track_")) { await handleTrack(callbackQuery, env, ctx); return; }
+  if (data.startsWith("artist_")) { await handleArtist(callbackQuery, env); return; }
+  if (data.startsWith("album_")) { await handleAlbum(callbackQuery, env); return; }
+  if (data.startsWith("ep_")) { await handleEp(callbackQuery, env); return; }
+  if (data.startsWith("playlist_")) { await handlePlaylist(callbackQuery, env); return; }
+  if (data.startsWith("getall_album_")) { await handleGetAllAlbum(callbackQuery, env, ctx); return; }
+  if (data.startsWith("getall_ep_")) { await handleGetAllEp(callbackQuery, env, ctx); return; }
+  if (data.startsWith("getall_playlist_")) { await handleGetAllPlaylist(callbackQuery, env, ctx); return; }
 }
