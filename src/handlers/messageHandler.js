@@ -1,6 +1,7 @@
 import { handleStart } from "../commands/start.js";
 import { handleForceSub } from "../commands/forcesub.js";
 import { handleSearch } from "../commands/search.js";
+import { handleList } from "./contentHandlers.js";
 import { handleTrack } from "../commands/track.js";
 import { handleArtist } from "../commands/artist.js";
 import { handleAlbum } from "../commands/album.js";
@@ -145,6 +146,15 @@ export async function handleMessage(message, env, ctx) {
       });
     }
   }
+
+else if (text === "/browse") {
+  const result = await handleList(chatId, "artists", 1, env);
+  if (result && result.message_id) {
+    setLastMessageId(chatId, result.message_id);
+  }
+}
+
+
   else if (text && !text.startsWith("/")) {
     await deleteSearchPrompt(chatId, env);
     await deletePreviousMessage(chatId, env);
