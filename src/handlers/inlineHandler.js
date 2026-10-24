@@ -25,6 +25,7 @@ export async function handleInlineQuery(inlineQuery, env) {
           id: "start",
           title: "🔍 Type a name to search...",
           description: "Keep typing...",
+thumb_url: "https://files.zedtopvibes.com/logos/zedtopvibes%20logo.jpg", // Replace with your logo URL
           input_message_content: { message_text: "🎵 Please type a search term." }
         }]
       })
