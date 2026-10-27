@@ -5,7 +5,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
   // 👇 VIEW 1: The Alphabet Grid
-  if (filterLetter === "SHOW_ALPHABET") {
+  if (filterLetter === "AZ") {
     const buttons = [];
     buttons.push([{ text: "🔢 0-9", callback_data: `filter_artists_NUM_1` }]);
     
@@ -115,7 +115,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   
   const actionRow = [];
   if (listType === "artists") {
-    actionRow.push({ text: "👤 A-Z Artists", callback_data: `filter_artists_SHOW_ALPHABET_1` });
+    actionRow.push({ text: "👤 A-Z Artists", callback_data: `filter_artists_AZ_1` });
   }
   actionRow.push({ text: "❌ Close", callback_data: "delete_message" });
   buttons.push(actionRow);
