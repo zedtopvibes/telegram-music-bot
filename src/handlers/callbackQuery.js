@@ -32,6 +32,20 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
   const data = callbackQuery.data;
   const messageId = callbackQuery.message.message_id;
   
+  // 🪲 DEBUG: See if we receive the click
+if (data.startsWith("filter_artists_")) {
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      callback_query_id: callbackQuery.id,
+      text: "Debug: Button clicked!",
+      show_alert: true
+    })
+  });
+  // Don't return yet, let the code continue to see if it crashes
+}
+  
+  
   // 1. Basic Buttons
   if (data === "check_subscription") {
     await handleSubscriptionCheck(callbackQuery, env);
