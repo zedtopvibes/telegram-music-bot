@@ -1,7 +1,7 @@
 import { handleStart } from "../commands/start.js";
 import { handleForceSub } from "../commands/forcesub.js";
 import { handleSearch } from "../commands/search.js";
-import { handleList } from "./contentHandlers.js";
+import { handleList } from "./content/list.js"; // ✅ NEW
 import { handleTrack } from "../commands/track.js";
 import { handleArtist } from "../commands/artist.js";
 import { handleAlbum } from "../commands/album.js";
