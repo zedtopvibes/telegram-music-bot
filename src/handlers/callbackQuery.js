@@ -217,7 +217,7 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
       body: JSON.stringify({ callback_query_id: callbackQuery.id })
     });
     await deletePreviousMessage(chatId, env);
-    const result = await handleList(chatId, "artists", 1, env);
+    const result = await handleList(chatId, "albums", 1, env, "", null);
     if (result && result.message_id) setLastMessageId(chatId, result.message_id);
     return;
   }
