@@ -59,10 +59,16 @@ export async function handleList(chatId, listType, page, env, filterLetter = "")
   let itemNameField = "";
   let filterCondition = "";
   
-  if (listType === "artists") {
-    if (filterLetter && filterLetter !== "ALL") {
+if (listType === "artists") {
+  if (filterLetter && filterLetter !== "ALL") {
+    if (filterLetter === "NUM") {
+      // Matches names starting with a number 0-9
+      filterCondition = `AND name GLOB '[0-9]*'`;
+    } else {
       filterCondition = `AND name LIKE '${filterLetter}%'`;
     }
+  }
+  
     query = `SELECT id, name FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition} ORDER BY name LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition}`;
     title = "🎤 Artists";
@@ -104,15 +110,18 @@ export async function handleList(chatId, listType, page, env, filterLetter = "")
   
   // Add Alphabet ONLY for artists
   if (listType === "artists") {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    let row = [];
-    letters.forEach((letter, index) => {
-      row.push({ text: letter, callback_data: `filter_artists_${letter}_1` });
-      if (row.length === 7 || index === letters.length - 1) {
-        buttons.push(row);
-        row = [];
-      }
-    });
+    // Add the 0-9 button first
+buttons.push([{ text: "🔢 0-9", callback_data: `filter_artists_NUM_1` }]);
+
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+let row = [];
+letters.forEach((letter, index) => {
+  row.push({ text: letter, callback_data: `filter_artists_${letter}_1` });
+  if (row.length === 7 || index === letters.length - 1) {
+    buttons.push(row);
+    row = [];
+  }
+});
     buttons.push([{ text: "🔙 Show All Artists", callback_data: `filter_artists_ALL_1` }]);
     buttons.push([{ text: "--- Select Artist ---", callback_data: "noop" }]);
   }
