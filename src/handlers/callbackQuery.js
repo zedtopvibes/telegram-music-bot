@@ -1,4 +1,4 @@
-import { handleList } from "../contentHandlers.js"; // 👈 Keep this for the A-Z List
+import { handleList } from "./content/list.js";
 import { handleArtist } from "./content/artist.js";
 import { handleAlbum } from "./content/album.js";
 import { handleEp } from "./content/ep.js";
