@@ -21,7 +21,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     
     buttons.push([{ text: "🔙 Back to List", callback_data: `page_artists_1_` }]);
     buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
-    
+     
     const text = `🎤 <b>Browse Artists by Letter</b>\n\nSelect a letter to find your favorite artist:`;
     
     if (messageId) {
