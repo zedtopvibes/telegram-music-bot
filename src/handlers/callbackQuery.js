@@ -241,24 +241,23 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
   }
 
   // 👇 6. A-Z FILTER ROUTING (Must be here, before Pagination!)
-  if (data.startsWith("filter_artists_")) {
-    const parts = data.split("_");
-    const letter = parts[2]; // "SHOW_ALPHABET", "A", "B", "NUM", "ALL"
-    const page = parseInt(parts[3]) || 1;
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callback_query_id: callbackQuery.id })
-    });
-    
-    // We pass messageId so it EDITS the message instead of sending a new one
-    const result = await handleList(chatId, "artists", page, env, letter, messageId);
-    if (result && result.message_id) {
-      setLastMessageId(chatId, result.message_id);
-    }
-    return;
-  }
+if (data.startsWith("filter_artists_")) {
+  const parts = data.split("_");
+  const letter = parts[2]; // This will grab "AZ", "A", "B", "NUM", etc.
+  const page = parseInt(parts[3]) || 1;
   
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQuery.id })
+  });
+  
+  const result = await handleList(chatId, "artists", page, env, letter, messageId);
+  if (result && result.message_id) {
+    setLastMessageId(chatId, result.message_id);
+  }
+  return;
+}
+
   // 7. Pagination (For lists and years)
   if (data.startsWith("page_")) {
     const parts = data.split("_");
