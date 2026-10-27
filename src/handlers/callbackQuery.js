@@ -258,27 +258,6 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
     return;
   }
 
-  // 👇 NEW: Handle Alphabet Filter Click
-  if (data.startsWith("filter_artists_")) {
-    const parts = data.split("_");
-    const letter = parts[2];
-    const page = parseInt(parts[3]);
-    
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callback_query_id: callbackQuery.id })
-    });
-    
-    await deletePreviousMessage(chatId, env);
-    
-    const result = await handleList(chatId, "artists", page, env, letter);
-    if (result && result.message_id) {
-      setLastMessageId(chatId, result.message_id);
-    }
-    return;
-  }
-  
   // 👇 UPDATE: Handle Pagination (with filter letter support)
   if (data.startsWith("page_")) {
     const parts = data.split("_");
