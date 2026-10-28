@@ -7,8 +7,11 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   // 👇 VIEW 1: The Alphabet Grid
   if (filterLetter === "AZ") {
     const buttons = [];
+    
+    // 1. The 0-9 Button
     buttons.push([{ text: "🔢 0-9", callback_data: `filter_artists_NUM_1` }]);
     
+    // 2. The A-Z Letters
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
     let row = [];
     letters.forEach((letter, index) => {
@@ -21,8 +24,8 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     
     buttons.push([{ text: "🔙 Back to List", callback_data: `page_artists_1_` }]);
     buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
-     
-    const text = `🎤 <b>Browse Artists by Letter</b>\n\nSelect a letter to find your favorite artist:`;
+    
+    const text = `🎤 <b>Browse Artists by Letter</b>\n\nSelect a letter or number to find your favorite artist:`;
     
     if (messageId) {
       await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
@@ -61,20 +64,20 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     }
     query = `SELECT id, name FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition} ORDER BY name LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition}`;
-    title = filterLetter ? `🎤 Artists (${filterLetter === 'NUM' ? '0-9' : filterLetter})` : "🎤 Artists";
-    emoji = "🎤"; itemNameField = "name";
+    title = filterLetter ? `🎤 Artists (${filterLetter === 'NUM' ? '0-9' : filterLetter})` : "🎤 Artists Directory";
+    emoji = "🎵"; itemNameField = "name";
   } else if (listType === "albums") {
     query = `SELECT id, title FROM albums WHERE deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM albums WHERE deleted_at IS NULL AND status = 'published'`;
-    title = "💿 Albums"; emoji = "💿"; itemNameField = "title";
+    title = "💿 Albums Directory"; emoji = "💿"; itemNameField = "title";
   } else if (listType === "eps") {
     query = `SELECT id, title FROM eps WHERE deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM eps WHERE deleted_at IS NULL AND status = 'published'`;
-    title = "🎵 EPs"; emoji = "🎵"; itemNameField = "title";
+    title = "🎵 EPs Directory"; emoji = "🎵"; itemNameField = "title";
   } else if (listType === "playlists") {
     query = `SELECT id, name FROM playlists WHERE deleted_at IS NULL AND status = 'published' ORDER BY name LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM playlists WHERE deleted_at IS NULL AND status = 'published'`;
-    title = "📋 Playlists"; emoji = "📋"; itemNameField = "name";
+    title = "📋 Playlists Directory"; emoji = "📋"; itemNameField = "name";
   }
   
   const [items, countResult] = await Promise.all([
@@ -85,11 +88,19 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   const totalItems = countResult.total;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   
-  let responseText = `${title} (Page ${page}/${totalPages})\n\n`;
+  // 👇 NEW DESIGN: Title + Total Count
+  let responseText = `<b>${title}</b>\n`;
+  if (!filterLetter) {
+    responseText += `<i>Total: ${totalItems} ${listType}</i>\n\n`;
+  } else {
+    responseText += `\n`;
+  }
   
   if (items.results && items.results.length > 0) {
     items.results.forEach((item, index) => {
-      responseText += `${offset + index + 1}. ${item[itemNameField]}\n`;
+      const num = offset + index + 1;
+      // 👇 NEW DESIGN: Emoji + Number + Name
+      responseText += `${emoji} ${num}. ${item[itemNameField]}\n`;
     });
   } else {
     responseText += `No ${listType} found.`;
@@ -99,10 +110,11 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   
   if (items.results) {
     items.results.forEach((item) => {
-      buttons.push([{ text: `${emoji} ${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` }]);
+      buttons.push([{ text: `${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` }]);
     });
   }
   
+  // 👇 NEW DESIGN: Pagination Row
   const paginationRow = [];
   if (page > 1) {
     paginationRow.push({ text: "⬅️ Prev", callback_data: `page_${listType}_${page - 1}_${filterLetter}` });
@@ -113,25 +125,24 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   }
   if (paginationRow.length > 1) buttons.push(paginationRow);
   
-  const actionRow = [];
+  // 👇 NEW DESIGN: A-Z and Close on separate rows
   if (listType === "artists") {
-    actionRow.push({ text: "👤 A-Z Artists", callback_data: `filter_artists_AZ_1` });
+    buttons.push([{ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` }]);
   }
-  actionRow.push({ text: "❌ Close", callback_data: "delete_message" });
-  buttons.push(actionRow);
+  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
   
   if (messageId) {
     await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: responseText, reply_markup: keyboard })
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: responseText, parse_mode: "HTML", reply_markup: keyboard })
     });
     return { message_id: messageId };
   } else {
     const res = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: responseText, reply_markup: keyboard })
+      body: JSON.stringify({ chat_id: chatId, text: responseText, parse_mode: "HTML", reply_markup: keyboard })
     });
     const data = await res.json();
     return { message_id: data.result?.message_id };
