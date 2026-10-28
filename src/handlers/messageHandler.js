@@ -147,7 +147,7 @@ export async function handleMessage(message, env, ctx) {
     }
   }
 
-else if (text === "/browse") {
+else if (text === "/artists") {
   const result = await handleList(chatId, "artists", 1, env);
   if (result && result.message_id) {
     setLastMessageId(chatId, result.message_id);
