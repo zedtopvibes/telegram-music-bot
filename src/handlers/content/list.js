@@ -125,13 +125,13 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   }
   if (paginationRow.length > 1) buttons.push(paginationRow);
   
-  // 👇 NEW DESIGN: A-Z and Close on separate rows
-  if (listType === "artists") {
-    buttons.push([{ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` }]);
-  }
-  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
-  
-  const keyboard = { inline_keyboard: buttons };
+ // 👇 NEW DESIGN: A-Z and Close side-by-side
+const bottomRow = [];
+if (listType === "artists") {
+  bottomRow.push({ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` });
+}
+bottomRow.push({ text: "❌ Close", callback_data: "delete_message" });
+buttons.push(bottomRow);
   
   if (messageId) {
     await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
