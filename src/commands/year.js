@@ -2,7 +2,7 @@ export async function listYears(chatId, page, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
   
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 12; // 👈 Changed to 12 so it fits perfectly in a 3x4 grid!
   const offset = (page - 1) * ITEMS_PER_PAGE;
   
   // Get unique years from tracks, albums, eps
@@ -34,7 +34,7 @@ export async function listYears(chatId, page, env) {
   ]);
   
   const totalYears = countResult.total;
-  const totalPages = Math.ceil(totalYears / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalYears / ITEMS_PER_PAGE) || 1;
   
   if (!years.results || years.results.length === 0) {
     const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -50,26 +50,37 @@ export async function listYears(chatId, page, env) {
   }
   
   // Build response
-  let responseText = `📆 Browse by Year (Page ${page}/${totalPages})\n\n`;
+  let responseText = `📆 <b>Browse by Year</b> (Page ${page}/${totalPages})\n\nSelect a year to see releases:`;
   
   const buttons = [];
+  let row = [];
   
-  years.results.forEach((yearObj) => {
+  // 👇 3-COLUMN GRID LOGIC
+  years.results.forEach((yearObj, index) => {
     const year = yearObj.year;
-    buttons.push([{ text: `📅 ${year}`, callback_data: `year_content_${year}_1` }]);
+    row.push({ text: `📅 ${year}`, callback_data: `year_content_${year}_1` });
+    
+    // If we have 3 buttons in the row, OR it's the last year, push the row!
+    if (row.length === 3 || index === years.results.length - 1) {
+      buttons.push(row);
+      row = [];
+    }
   });
   
   // Pagination buttons
   const paginationRow = [];
   if (page > 1) {
-    paginationRow.push({ text: "◀️ Previous", callback_data: `page_years_${page - 1}` });
+    paginationRow.push({ text: "⬅️ Prev", callback_data: `page_years_${page - 1}` });
   }
   paginationRow.push({ text: `${page}/${totalPages}`, callback_data: "noop" });
   if (page < totalPages) {
-    paginationRow.push({ text: "Next ▶️", callback_data: `page_years_${page + 1}` });
+    paginationRow.push({ text: "Next ➡️", callback_data: `page_years_${page + 1}` });
   }
-  buttons.push(paginationRow);
-  buttons.push([{ text: "❌", callback_data: "delete_message" }]);
+  if (paginationRow.length > 1) {
+    buttons.push(paginationRow);
+  }
+  
+  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
   
@@ -79,6 +90,7 @@ export async function listYears(chatId, page, env) {
     body: JSON.stringify({
       chat_id: chatId,
       text: responseText,
+      parse_mode: "HTML",
       reply_markup: keyboard
     })
   });
@@ -170,7 +182,7 @@ export async function showYearContent(chatId, year, page, env) {
   }
   
   const totalItems = countResult.total;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   
   if (allItems.length === 0) {
     const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
@@ -186,7 +198,7 @@ export async function showYearContent(chatId, year, page, env) {
   }
   
   // Build response
-  let responseText = `📅 Releases from ${year} (Page ${page}/${totalPages})\n\n`;
+  let responseText = `📅 <b>Releases from ${year}</b> (Page ${page}/${totalPages})\n\n`;
   
   const buttons = [];
   
@@ -202,14 +214,17 @@ export async function showYearContent(chatId, year, page, env) {
   // Pagination buttons
   const paginationRow = [];
   if (page > 1) {
-    paginationRow.push({ text: "◀️ Previous", callback_data: `page_year_${year}_${page - 1}` });
+    paginationRow.push({ text: "⬅️ Prev", callback_data: `page_year_${year}_${page - 1}` });
   }
   paginationRow.push({ text: `${page}/${totalPages}`, callback_data: "noop" });
   if (page < totalPages) {
-    paginationRow.push({ text: "Next ▶️", callback_data: `page_year_${year}_${page + 1}` });
+    paginationRow.push({ text: "Next ➡️", callback_data: `page_year_${year}_${page + 1}` });
   }
-  buttons.push(paginationRow);
-  buttons.push([{ text: "❌", callback_data: "delete_message" }]);
+  if (paginationRow.length > 1) {
+    buttons.push(paginationRow);
+  }
+  
+  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
   
@@ -219,6 +234,7 @@ export async function showYearContent(chatId, year, page, env) {
     body: JSON.stringify({
       chat_id: chatId,
       text: responseText,
+      parse_mode: "HTML",
       reply_markup: keyboard
     })
   });
