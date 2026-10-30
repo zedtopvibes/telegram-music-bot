@@ -1,5 +1,5 @@
 import { handleList } from "./content/list.js";
-import { handleArtist } from "./content/artist.js";
+import { handleArtist, handleArtistSongsView, handleArtistAlbumsView } from "./content/artist.js";
 import { handleAlbum } from "./content/album.js";
 import { handleEp } from "./content/ep.js";
 import { handlePlaylist } from "./content/playlist.js";
@@ -7,7 +7,6 @@ import { handleTrack } from "./content/track.js";
 import { handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./content/getAll.js";
 import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
-import {handleArtistSongsView, handleArtistAlbumsView } from "./content/artist.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchPromptId } from "../utils/userState.js";
 import { checkSubscription } from "../middleware/checkSubscription.js";
@@ -32,8 +31,6 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
   const messageId = callbackQuery.message.message_id;
- 
-  
   
   // 1. Basic Buttons
   if (data === "check_subscription") {
@@ -200,7 +197,7 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
     return;
   }
   
-  // 5. Main Lists (Artists, Albums, etc.)
+  // 5. Main Lists
   if (data === "list_artists") {
     await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -241,25 +238,25 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
     return;
   }
 
-  // 👇 6. A-Z FILTER ROUTING (Must be here, before Pagination!)
-if (data.startsWith("filter_artists_")) {
-  const parts = data.split("_");
-  const letter = parts[2]; // This will grab "AZ", "A", "B", "NUM", etc.
-  const page = parseInt(parts[3]) || 1;
-  
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackQuery.id })
-  });
-  
-  const result = await handleList(chatId, "artists", page, env, letter, messageId);
-  if (result && result.message_id) {
-    setLastMessageId(chatId, result.message_id);
+  // 6. A-Z Filter Routing
+  if (data.startsWith("filter_artists_")) {
+    const parts = data.split("_");
+    const letter = parts[2]; 
+    const page = parseInt(parts[3]) || 1;
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    const result = await handleList(chatId, "artists", page, env, letter, messageId);
+    if (result && result.message_id) {
+      setLastMessageId(chatId, result.message_id);
+    }
+    return;
   }
-  return;
-}
-
-  // 7. Pagination (For lists and years)
+  
+  // 7. Pagination
   if (data.startsWith("page_")) {
     const parts = data.split("_");
     const listType = parts[1];
@@ -278,33 +275,33 @@ if (data.startsWith("filter_artists_")) {
     return;
   }
 
-  // 8. Content Buttons (Artist, Album, EP, Playlist, Track, Get All)
-  if (data.startsWith("track_")) { await handleTrack(callbackQuery, env, ctx); return; }
-// 👇 Handle Artist Songs Button
-if (data.startsWith("artist_songs_")) {
-  const artistId = data.replace("artist_songs_", "");
-  
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackQuery.id })
-  });
-  
-  await handleArtistSongsView(chatId, messageId, artistId, env);
-  return;
-}
+  // 👇 8. Artist Sub-Menus (Songs & Albums)
+  if (data.startsWith("artist_songs_")) {
+    const artistId = data.replace("artist_songs_", "");
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    await handleArtistSongsView(chatId, messageId, artistId, env);
+    return;
+  }
 
-// 👇 Handle Artist Albums Button
-if (data.startsWith("artist_albums_")) {
-  const artistId = data.replace("artist_albums_", "");
-  
-  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackQuery.id })
-  });
-  
-  await handleArtistAlbumsView(chatId, messageId, artistId, env);
-  return;
-}
+  if (data.startsWith("artist_albums_")) {
+    const artistId = data.replace("artist_albums_", "");
+    
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQuery.id })
+    });
+    
+    await handleArtistAlbumsView(chatId, messageId, artistId, env);
+    return;
+  }
+
+  // 9. Content Buttons
+  if (data.startsWith("track_")) { await handleTrack(callbackQuery, env, ctx); return; }
   if (data.startsWith("artist_")) { await handleArtist(callbackQuery, env); return; }
   if (data.startsWith("album_")) { await handleAlbum(callbackQuery, env); return; }
   if (data.startsWith("ep_")) { await handleEp(callbackQuery, env); return; }
