@@ -107,9 +107,17 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   
   const buttons = [];
   
+  // 👇 2-COLUMN GRID LOGIC
   if (items.results) {
-    items.results.forEach((item) => {
-      buttons.push([{ text: `${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` }]);
+    let itemRow = [];
+    items.results.forEach((item, index) => {
+      itemRow.push({ text: `${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` });
+      
+      // If we have 2 buttons in the row, OR it's the last item, push the row!
+      if (itemRow.length === 2 || index === items.results.length - 1) {
+        buttons.push(itemRow);
+        itemRow = [];
+      }
     });
   }
   
@@ -124,7 +132,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   }
   if (paginationRow.length > 1) buttons.push(paginationRow);
   
-  // 👇 A-Z and Close side-by-side
+  // A-Z and Close side-by-side
   const bottomRow = [];
   if (listType === "artists") {
     bottomRow.push({ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` });
