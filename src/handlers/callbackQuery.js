@@ -280,6 +280,31 @@ if (data.startsWith("filter_artists_")) {
 
   // 8. Content Buttons (Artist, Album, EP, Playlist, Track, Get All)
   if (data.startsWith("track_")) { await handleTrack(callbackQuery, env, ctx); return; }
+// 👇 Handle Artist Songs Button
+if (data.startsWith("artist_songs_")) {
+  const artistId = data.replace("artist_songs_", "");
+  
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQuery.id })
+  });
+  
+  await handleArtistSongsView(chatId, messageId, artistId, env);
+  return;
+}
+
+// 👇 Handle Artist Albums Button
+if (data.startsWith("artist_albums_")) {
+  const artistId = data.replace("artist_albums_", "");
+  
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQuery.id })
+  });
+  
+  await handleArtistAlbumsView(chatId, messageId, artistId, env);
+  return;
+}
   if (data.startsWith("artist_")) { await handleArtist(callbackQuery, env); return; }
   if (data.startsWith("album_")) { await handleAlbum(callbackQuery, env); return; }
   if (data.startsWith("ep_")) { await handleEp(callbackQuery, env); return; }
