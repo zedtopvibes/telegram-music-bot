@@ -7,7 +7,7 @@ import { handleTrack } from "./content/track.js";
 import { handleGetAllAlbum, handleGetAllEp, handleGetAllPlaylist } from "./content/getAll.js";
 import { listYears, showYearContent } from "../commands/year.js";
 import { showNewReleases } from "../commands/newreleases.js";
-import { handleArtist, handleArtistSongsView, handleArtistAlbumsView } from "./content/artist.js";
+import {handleArtistSongsView, handleArtistAlbumsView } from "./content/artist.js";
 import { handleSubscriptionCheck } from "./subscriptionHandler.js";
 import { deletePreviousMessage, setLastMessageId, deleteSearchPrompt, setSearchPromptId } from "../utils/userState.js";
 import { checkSubscription } from "../middleware/checkSubscription.js";
