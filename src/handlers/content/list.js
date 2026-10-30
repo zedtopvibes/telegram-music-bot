@@ -110,7 +110,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     let featuredRow = [];
     featured.forEach((f, index) => {
       // We add the 🌟 emoji here to make them stand out without a label
-      featuredRow.push({ text: `🌟 ${f.name}`, callback_data: `artist_${f.id}` });
+      featuredRow.push({ text: `${f.name}`, callback_data: `artist_${f.id}` });
       if (featuredRow.length === 2 || index === featured.length - 1) {
         buttons.push(featuredRow);
         featuredRow = [];
