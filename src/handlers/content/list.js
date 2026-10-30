@@ -7,11 +7,8 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   // 👇 VIEW 1: The Alphabet Grid
   if (filterLetter === "AZ") {
     const buttons = [];
-    
-    // 1. The 0-9 Button
     buttons.push([{ text: "🔢 0-9", callback_data: `filter_artists_NUM_1` }]);
     
-    // 2. The A-Z Letters
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
     let row = [];
     letters.forEach((letter, index) => {
@@ -85,14 +82,29 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     env.DB.prepare(countQuery).first()
   ]);
   
+  // 👇 NEW: Fetch Featured Artists (Only on Page 1, no filter, for Artists)
+  let featured = [];
+  if (listType === "artists" && page === 1 && !filterLetter) {
+    const featuredQuery = `SELECT id, name FROM artists WHERE is_featured = 1 AND deleted_at IS NULL AND status = 'published' LIMIT 4`;
+    const featuredRes = await env.DB.prepare(featuredQuery).all();
+    if (featuredRes.results) featured = featuredRes.results;
+  }
+  
   const totalItems = countResult.total;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   
   // Title + Total Count
   let responseText = `<b>${title}</b>\n`;
   if (!filterLetter) {
-    responseText += `<i>Total: ${totalItems} ${listType}</i>\n\n`;
+    responseText += `<i>📊 Total: ${totalItems} ${listType}</i>\n\n`;
   } else {
+    responseText += `\n`;
+  }
+  
+  // 👇 Add Featured to Text (if exists)
+  if (featured.length > 0) {
+    responseText += `🌟 <b>Featured Artists:</b>\n`;
+    featured.forEach(f => { responseText += `⭐ ${f.name}\n`; });
     responseText += `\n`;
   }
   
@@ -107,13 +119,28 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   
   const buttons = [];
   
-  // 👇 2-COLUMN GRID LOGIC
+  // 👇 TOP ROW: A-Z Button (Only for Artists)
+  if (listType === "artists") {
+    buttons.push([{ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` }]);
+  }
+  
+  // 👇 Featured Buttons
+  if (featured.length > 0) {
+    let featuredRow = [];
+    featured.forEach((f, index) => {
+      featuredRow.push({ text: `🌟 ${f.name}`, callback_data: `artist_${f.id}` });
+      if (featuredRow.length === 2 || index === featured.length - 1) {
+        buttons.push(featuredRow);
+        featuredRow = [];
+      }
+    });
+  }
+  
+  // 👇 Main 2-Column Grid
   if (items.results) {
     let itemRow = [];
     items.results.forEach((item, index) => {
       itemRow.push({ text: `${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` });
-      
-      // If we have 2 buttons in the row, OR it's the last item, push the row!
       if (itemRow.length === 2 || index === items.results.length - 1) {
         buttons.push(itemRow);
         itemRow = [];
@@ -121,7 +148,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     });
   }
   
-  // Pagination Row
+  // 👇 Pagination Row
   const paginationRow = [];
   if (page > 1) {
     paginationRow.push({ text: "⬅️ Prev", callback_data: `page_${listType}_${page - 1}_${filterLetter}` });
@@ -132,13 +159,8 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   }
   if (paginationRow.length > 1) buttons.push(paginationRow);
   
-  // A-Z and Close side-by-side
-  const bottomRow = [];
-  if (listType === "artists") {
-    bottomRow.push({ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` });
-  }
-  bottomRow.push({ text: "❌ Close", callback_data: "delete_message" });
-  buttons.push(bottomRow);
+  // 👇 Close Button (Alone at the bottom)
+  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
   
