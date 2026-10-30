@@ -88,7 +88,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   const totalItems = countResult.total;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   
-  // 👇 NEW DESIGN: Title + Total Count
+  // Title + Total Count
   let responseText = `<b>${title}</b>\n`;
   if (!filterLetter) {
     responseText += `<i>Total: ${totalItems} ${listType}</i>\n\n`;
@@ -99,7 +99,6 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   if (items.results && items.results.length > 0) {
     items.results.forEach((item, index) => {
       const num = offset + index + 1;
-      // 👇 NEW DESIGN: Emoji + Number + Name
       responseText += `${emoji} ${num}. ${item[itemNameField]}\n`;
     });
   } else {
@@ -114,7 +113,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     });
   }
   
-  // 👇 NEW DESIGN: Pagination Row
+  // Pagination Row
   const paginationRow = [];
   if (page > 1) {
     paginationRow.push({ text: "⬅️ Prev", callback_data: `page_${listType}_${page - 1}_${filterLetter}` });
@@ -125,13 +124,15 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   }
   if (paginationRow.length > 1) buttons.push(paginationRow);
   
- // 👇 NEW DESIGN: A-Z and Close side-by-side
-const bottomRow = [];
-if (listType === "artists") {
-  bottomRow.push({ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` });
-}
-bottomRow.push({ text: "❌ Close", callback_data: "delete_message" });
-buttons.push(bottomRow);
+  // 👇 A-Z and Close side-by-side
+  const bottomRow = [];
+  if (listType === "artists") {
+    bottomRow.push({ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` });
+  }
+  bottomRow.push({ text: "❌ Close", callback_data: "delete_message" });
+  buttons.push(bottomRow);
+  
+  const keyboard = { inline_keyboard: buttons };
   
   if (messageId) {
     await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
