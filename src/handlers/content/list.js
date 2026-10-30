@@ -57,7 +57,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
         filterCondition = `AND name LIKE '${filterLetter}%'`;
       }
     }
-    // 👇 FIX: If Page 1 (no filter), exclude featured artists from the main list
+    // Exclude featured artists from the main grid so they don't duplicate
     let excludeFeatured = (page === 1 && !filterLetter) ? `AND is_featured = 0` : ``;
 
     query = `SELECT id, name FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition} ${excludeFeatured} ORDER BY name LIMIT ? OFFSET ?`;
@@ -93,23 +93,24 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   const totalItems = countResult.total;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   
-  // 👇 FIX: Clean description (No numbered list!)
+  // 👇 Stretch the text bubble with a line separator
   let responseText = `<b>${title}</b>\n`;
   responseText += `📊 Total: ${totalItems} ${listType}\n`;
+  responseText += `━━━━━━━━━━━━━━━━━━\n`;
   
   const buttons = [];
   
-  // 👇 TOP ROW: A-Z Button
+  // TOP ROW: A-Z Button
   if (listType === "artists") {
     buttons.push([{ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` }]);
   }
   
-  // 👇 Featured Buttons (if they exist)
+  // 👇 Featured Buttons (With the Secret Star!)
   if (featured.length > 0) {
-    buttons.push([{ text: "🌟 Featured Artists", callback_data: "noop" }]);
     let featuredRow = [];
     featured.forEach((f, index) => {
-      featuredRow.push({ text: `${f.name}`, callback_data: `artist_${f.id}` });
+      // We add the 🌟 emoji here to make them stand out without a label
+      featuredRow.push({ text: `🌟 ${f.name}`, callback_data: `artist_${f.id}` });
       if (featuredRow.length === 2 || index === featured.length - 1) {
         buttons.push(featuredRow);
         featuredRow = [];
@@ -117,9 +118,8 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     });
   }
   
-  // 👇 Main Grid
+  // 👇 Main Grid (No Labels!)
   if (items.results && items.results.length > 0) {
-    buttons.push([{ text: "🎵 All Artists", callback_data: "noop" }]);
     let itemRow = [];
     items.results.forEach((item, index) => {
       const nameField = listType === "artists" ? item.name : listType === "playlists" ? item.name : item.title;
@@ -129,7 +129,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
         itemRow = [];
       }
     });
-  } else {
+  } else if (featured.length === 0) {
     responseText += `\nNo ${listType} found.`;
   }
   
