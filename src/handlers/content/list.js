@@ -47,8 +47,6 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   let query = "";
   let countQuery = "";
   let title = "";
-  let emoji = "";
-  let itemNameField = "";
   let filterCondition = "";
   
   if (listType === "artists") {
@@ -59,22 +57,24 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
         filterCondition = `AND name LIKE '${filterLetter}%'`;
       }
     }
-    query = `SELECT id, name FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition} ORDER BY name LIMIT ? OFFSET ?`;
+    // 👇 FIX: If Page 1 (no filter), exclude featured artists from the main list
+    let excludeFeatured = (page === 1 && !filterLetter) ? `AND is_featured = 0` : ``;
+
+    query = `SELECT id, name FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition} ${excludeFeatured} ORDER BY name LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM artists WHERE deleted_at IS NULL AND status = 'published' ${filterCondition}`;
     title = filterLetter ? `🎤 Artists (${filterLetter === 'NUM' ? '0-9' : filterLetter})` : "🎤 Artists Directory";
-    emoji = "🎵"; itemNameField = "name";
   } else if (listType === "albums") {
     query = `SELECT id, title FROM albums WHERE deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM albums WHERE deleted_at IS NULL AND status = 'published'`;
-    title = "💿 Albums Directory"; emoji = "💿"; itemNameField = "title";
+    title = "💿 Albums Directory";
   } else if (listType === "eps") {
     query = `SELECT id, title FROM eps WHERE deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM eps WHERE deleted_at IS NULL AND status = 'published'`;
-    title = "🎵 EPs Directory"; emoji = "🎵"; itemNameField = "title";
+    title = "🎵 EPs Directory";
   } else if (listType === "playlists") {
     query = `SELECT id, name FROM playlists WHERE deleted_at IS NULL AND status = 'published' ORDER BY name LIMIT ? OFFSET ?`;
     countQuery = `SELECT COUNT(*) as total FROM playlists WHERE deleted_at IS NULL AND status = 'published'`;
-    title = "📋 Playlists Directory"; emoji = "📋"; itemNameField = "name";
+    title = "📋 Playlists Directory";
   }
   
   const [items, countResult] = await Promise.all([
@@ -82,7 +82,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     env.DB.prepare(countQuery).first()
   ]);
   
-  // 👇 NEW: Fetch Featured Artists (Only on Page 1, no filter, for Artists)
+  // Fetch Featured Artists (Only on Page 1, no filter)
   let featured = [];
   if (listType === "artists" && page === 1 && !filterLetter) {
     const featuredQuery = `SELECT id, name FROM artists WHERE is_featured = 1 AND deleted_at IS NULL AND status = 'published' LIMIT 4`;
@@ -93,42 +93,23 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   const totalItems = countResult.total;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
   
-  // Title + Total Count
+  // 👇 FIX: Clean description (No numbered list!)
   let responseText = `<b>${title}</b>\n`;
-  if (!filterLetter) {
-    responseText += `<i>📊 Total: ${totalItems} ${listType}</i>\n\n`;
-  } else {
-    responseText += `\n`;
-  }
-  
-  // 👇 Add Featured to Text (if exists)
-  if (featured.length > 0) {
-    responseText += `🌟 <b>Featured Artists:</b>\n`;
-    featured.forEach(f => { responseText += `⭐ ${f.name}\n`; });
-    responseText += `\n`;
-  }
-  
-  if (items.results && items.results.length > 0) {
-    items.results.forEach((item, index) => {
-      const num = offset + index + 1;
-      responseText += `${emoji} ${num}. ${item[itemNameField]}\n`;
-    });
-  } else {
-    responseText += `No ${listType} found.`;
-  }
+  responseText += `📊 Total: ${totalItems} ${listType}\n`;
   
   const buttons = [];
   
-  // 👇 TOP ROW: A-Z Button (Only for Artists)
+  // 👇 TOP ROW: A-Z Button
   if (listType === "artists") {
     buttons.push([{ text: "👤 Browse A-Z", callback_data: `filter_artists_AZ_1` }]);
   }
   
-  // 👇 Featured Buttons
+  // 👇 Featured Buttons (if they exist)
   if (featured.length > 0) {
+    buttons.push([{ text: "🌟 Featured Artists", callback_data: "noop" }]);
     let featuredRow = [];
     featured.forEach((f, index) => {
-      featuredRow.push({ text: `🌟 ${f.name}`, callback_data: `artist_${f.id}` });
+      featuredRow.push({ text: `${f.name}`, callback_data: `artist_${f.id}` });
       if (featuredRow.length === 2 || index === featured.length - 1) {
         buttons.push(featuredRow);
         featuredRow = [];
@@ -136,19 +117,23 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
     });
   }
   
-  // 👇 Main 2-Column Grid
-  if (items.results) {
+  // 👇 Main Grid
+  if (items.results && items.results.length > 0) {
+    buttons.push([{ text: "🎵 All Artists", callback_data: "noop" }]);
     let itemRow = [];
     items.results.forEach((item, index) => {
-      itemRow.push({ text: `${item[itemNameField]}`, callback_data: `${listType.slice(0, -1)}_${item.id}` });
+      const nameField = listType === "artists" ? item.name : listType === "playlists" ? item.name : item.title;
+      itemRow.push({ text: `${nameField}`, callback_data: `${listType.slice(0, -1)}_${item.id}` });
       if (itemRow.length === 2 || index === items.results.length - 1) {
         buttons.push(itemRow);
         itemRow = [];
       }
     });
+  } else {
+    responseText += `\nNo ${listType} found.`;
   }
   
-  // 👇 Pagination Row
+  // Pagination Row
   const paginationRow = [];
   if (page > 1) {
     paginationRow.push({ text: "⬅️ Prev", callback_data: `page_${listType}_${page - 1}_${filterLetter}` });
@@ -159,7 +144,7 @@ export async function handleList(chatId, listType, page, env, filterLetter = "",
   }
   if (paginationRow.length > 1) buttons.push(paginationRow);
   
-  // 👇 Close Button (Alone at the bottom)
+  // Close Button
   buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
   
   const keyboard = { inline_keyboard: buttons };
