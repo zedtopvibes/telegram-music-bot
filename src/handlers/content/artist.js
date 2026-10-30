@@ -2,7 +2,9 @@ import { checkUserSubscription, sendPhotoWithCaption } from "./utils.js";
 import { deletePreviousMessage, setLastMessageId } from "../../utils/userState.js";
 
 const TELEGRAM_API = (token) => `https://api.telegram.org/bot${token}`;
+const IMAGE_CDN = "https://zedtopvibes.com";
 
+// 👇 1. VIEW ARTIST PROFILE
 export async function handleArtist(callbackQuery, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const chatId = callbackQuery.message.chat.id;
@@ -21,12 +23,16 @@ export async function handleArtist(callbackQuery, env) {
     return;
   }
   
+  // Acknowledge the click
   await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackQuery.id })
   });
   
-  await deletePreviousMessage(chatId, env);
+  // If it's a new message, delete previous. If editing, we don't need to delete.
+  if (!callbackQuery.message.photo) {
+    await deletePreviousMessage(chatId, env);
+  }
   
   const artistQuery = `SELECT id, name, image_url, created_at FROM artists WHERE id = ? AND deleted_at IS NULL AND status = 'published'`;
   const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
@@ -64,22 +70,35 @@ export async function handleArtist(callbackQuery, env) {
 
   const keyboard = { inline_keyboard: buttons };
   
-  if (artist.image_url && artist.image_url !== "" && artist.image_url !== "null") {
-    await sendPhotoWithCaption(chatId, artist.image_url, caption, env, keyboard);
-  } else {
-    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+  // If the current message is already a photo, EDIT it. Otherwise, SEND a new one.
+  if (callbackQuery.message.photo) {
+    await fetch(`${TELEGRAM_API(BOT_TOKEN)}/editMessageMedia`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: "HTML", reply_markup: keyboard })
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: callbackQuery.message.message_id,
+        media: {
+          type: "photo",
+          media: artist.image_url && !artist.image_url.startsWith("http") ? `${IMAGE_CDN}${artist.image_url}` : (artist.image_url || "https://zedtopvibes.com/api/artist-image/default.png"),
+          caption: caption,
+          parse_mode: "HTML"
+        },
+        reply_markup: keyboard
+      })
     });
+  } else {
+    if (artist.image_url && artist.image_url !== "" && artist.image_url !== "null") {
+      await sendPhotoWithCaption(chatId, artist.image_url, caption, env, keyboard);
+    } else {
+      await fetch(`${TELEGRAM_API(BOT_TOKEN)}/sendMessage`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: "HTML", reply_markup: keyboard })
+      });
+    }
   }
 }
 
-
-
-
-
-
-// 2. THE NEW SONGS VIEW FUNCTION (Paste this right below handleArtist)
+// 👇 2. VIEW ARTIST SONGS (Edits the photo into a text list)
 export async function handleArtistSongsView(chatId, messageId, artistId, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
@@ -117,7 +136,7 @@ export async function handleArtistSongsView(chatId, messageId, artistId, env) {
   });
 }
 
-// 3. THE NEW ALBUMS VIEW FUNCTION (Paste this right below handleArtistSongsView)
+// 👇 3. VIEW ARTIST ALBUMS (Edits the photo into a text list)
 export async function handleArtistAlbumsView(chatId, messageId, artistId, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
