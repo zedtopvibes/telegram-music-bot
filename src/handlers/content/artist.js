@@ -98,78 +98,98 @@ export async function handleArtist(callbackQuery, env) {
   }
 }
 
-// 👇 2. VIEW ARTIST SONGS (Edits the photo into a text list)
+// 👇 VIEW ARTIST SONGS (Edits the photo into a text list)
 export async function handleArtistSongsView(chatId, messageId, artistId, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
-  const artistQuery = `SELECT name FROM artists WHERE id = ?`;
-  const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
-  
-  const tracksQuery = `
-    SELECT t.id, t.title FROM tracks t
-    LEFT JOIN track_artists ta ON t.id = ta.track_id
-    WHERE ta.artist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
-    GROUP BY t.id ORDER BY t.title LIMIT 30
-  `;
-  const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
-  
-  let responseText = `🎵 <b>${artist.name} - Songs</b>\n`;
-  responseText += `━━━━━━━━━━━━━━━━━━\n\n`;
-  
-  const buttons = [];
-  
-  if (tracks.results && tracks.results.length > 0) {
-    tracks.results.forEach((track) => {
-      buttons.push([{ text: `🎧 ${track.title}`, callback_data: `track_${track.id}` }]);
-    });
-  } else {
-    responseText += `No songs found.`;
-  }
-  
-  buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
-  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
+  try {
+    const artistQuery = `SELECT name FROM artists WHERE id = ?`;
+    const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
+    
+    // LIMIT 20 to prevent hitting the 4096 character limit
+    const tracksQuery = `
+      SELECT t.id, t.title FROM tracks t
+      LEFT JOIN track_artists ta ON t.id = ta.track_id
+      WHERE ta.artist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
+      GROUP BY t.id ORDER BY t.title LIMIT 20
+    `;
+    const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
+    
+    let responseText = `🎵 <b>${artist.name} - Songs</b>\n`;
+    responseText += `━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    const buttons = [];
+    
+    if (tracks.results && tracks.results.length > 0) {
+      tracks.results.forEach((track) => {
+        buttons.push([{ text: `🎧 ${track.title}`, callback_data: `track_${track.id}` }]);
+      });
+    } else {
+      responseText += `No songs found.`;
+    }
+    
+    buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
+    buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
 
-  await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: responseText, parse_mode: "HTML", reply_markup: { inline_keyboard: buttons } })
-  });
+    const response = await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: responseText, parse_mode: "HTML", reply_markup: { inline_keyboard: buttons } })
+    });
+    
+    const data = await response.json();
+    if (!data.ok) {
+      console.error("Telegram API Error (Songs):", data.description);
+    }
+  } catch (error) {
+    console.error("Songs View Error:", error);
+  }
 }
 
-// 👇 3. VIEW ARTIST ALBUMS (Edits the photo into a text list)
+// 👇 VIEW ARTIST ALBUMS (Edits the photo into a text list)
 export async function handleArtistAlbumsView(chatId, messageId, artistId, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
   
-  const artistQuery = `SELECT name FROM artists WHERE id = ?`;
-  const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
-  
-  const albumsQuery = `SELECT id, title FROM albums WHERE artist_id = ? AND deleted_at IS NULL AND status = 'published' ORDER BY title`;
-  const albums = await env.DB.prepare(albumsQuery).bind(artistId).all();
-  
-  let responseText = `💿 <b>${artist.name} - Albums</b>\n`;
-  responseText += `━━━━━━━━━━━━━━━━━━\n\n`;
-  
-  const buttons = [];
-  
-  if (albums.results && albums.results.length > 0) {
-    let row = [];
-    albums.results.forEach((album, index) => {
-      row.push({ text: `${album.title}`, callback_data: `album_${album.id}` });
-      if (row.length === 2 || index === albums.results.length - 1) {
-        buttons.push(row);
-        row = [];
-      }
-    });
-  } else {
-    responseText += `No albums found.`;
-  }
-  
-  buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
-  buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
+  try {
+    const artistQuery = `SELECT name FROM artists WHERE id = ?`;
+    const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
+    
+    // LIMIT 20 to prevent hitting the 4096 character limit
+    const albumsQuery = `SELECT id, title FROM albums WHERE artist_id = ? AND deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT 20`;
+    const albums = await env.DB.prepare(albumsQuery).bind(artistId).all();
+    
+    let responseText = `💿 <b>${artist.name} - Albums</b>\n`;
+    responseText += `━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    const buttons = [];
+    
+    if (albums.results && albums.results.length > 0) {
+      let row = [];
+      albums.results.forEach((album, index) => {
+        row.push({ text: `${album.title}`, callback_data: `album_${album.id}` });
+        if (row.length === 2 || index === albums.results.length - 1) {
+          buttons.push(row);
+          row = [];
+        }
+      });
+    } else {
+      responseText += `No albums found.`;
+    }
+    
+    buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
+    buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
 
-  await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: responseText, parse_mode: "HTML", reply_markup: { inline_keyboard: buttons } })
-  });
+    const response = await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: responseText, parse_mode: "HTML", reply_markup: { inline_keyboard: buttons } })
+    });
+    
+    const data = await response.json();
+    if (!data.ok) {
+      console.error("Telegram API Error (Albums):", data.description);
+    }
+  } catch (error) {
+    console.error("Albums View Error:", error);
+  }
 }
