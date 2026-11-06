@@ -217,3 +217,80 @@ export async function handleArtistAppearsOnView(chatId, messageId, artistId, env
     console.error("Appears On View Error:", error);
   }
 }
+
+
+
+// 👇 5. VIEW ARTIST RELATED (Smart Match by Genre + Gender)
+export async function handleArtistRelatedView(chatId, messageId, artistId, env) {
+  const BOT_TOKEN = env.BOT_TOKEN;
+  const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
+  
+  try {
+    // 1. Get the current artist's details
+    const artistQuery = `SELECT name, genre, gender FROM artists WHERE id = ?`;
+    const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
+    
+    if (!artist) return;
+    
+    // 2. Try to find related artists (Same Genre + Same Gender)
+    let relatedQuery = `
+      SELECT id, name FROM artists 
+      WHERE genre = ? AND gender = ? AND id != ? AND deleted_at IS NULL AND status = 'published'
+      LIMIT 6
+    `;
+    let related = await env.DB.prepare(relatedQuery).bind(artist.genre, artist.gender, artistId).all();
+    
+    // 3. Fallback: If no strict matches, just find same Genre (any gender)
+    if (!related.results || related.results.length === 0) {
+      relatedQuery = `
+        SELECT id, name FROM artists 
+        WHERE genre = ? AND id != ? AND deleted_at IS NULL AND status = 'published'
+        LIMIT 6
+      `;
+      related = await env.DB.prepare(relatedQuery).bind(artist.genre, artistId).all();
+    }
+
+    // 4. Last Resort: If still empty, just show random Zambian artists
+    if (!related.results || related.results.length === 0) {
+      relatedQuery = `
+        SELECT id, name FROM artists 
+        WHERE id != ? AND deleted_at IS NULL AND status = 'published'
+        LIMIT 6
+      `;
+      related = await env.DB.prepare(relatedQuery).bind(artistId).all();
+    }
+    
+    let caption = `🔗 <b>Artists Related to ${artist.name}</b>\n━━━━━━━━━━━━━━━━━━\n\n`;
+    const buttons = [];
+    
+    if (related.results && related.results.length > 0) {
+      let row = [];
+      related.results.forEach((rel, index) => {
+        row.push({ text: `🎤 ${rel.name}`, callback_data: `artist_${rel.id}` });
+        if (row.length === 2 || index === related.results.length - 1) {
+          buttons.push(row);
+          row = [];
+        }
+      });
+    } else {
+      caption += `No related artists found.`;
+    }
+    
+    buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
+    buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
+
+    // Edit the photo caption and buttons
+    await fetch(`${TELEGRAM_API_URL}/editMessageCaption`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, caption: caption, parse_mode: "HTML" })
+    });
+    
+    await fetch(`${TELEGRAM_API_URL}/editMessageReplyMarkup`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: buttons } })
+    });
+    
+  } catch (error) {
+    console.error("Related View Error:", error);
+  }
+}
