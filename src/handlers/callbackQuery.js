@@ -299,6 +299,19 @@ export async function handleCallbackQuery(callbackQuery, env, ctx) {
     await handleArtistAlbumsView(chatId, messageId, artistId, env);
     return;
   }
+  
+  // 👇 Handle Appears On Button
+if (data.startsWith("artist_appears_")) {
+  const artistId = data.replace("artist_appears_", "");
+  
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQuery.id })
+  });
+  
+  await handleArtistAppearsOnView(chatId, messageId, artistId, env);
+  return;
+}
 
   // 9. Content Buttons
   if (data.startsWith("track_")) { await handleTrack(callbackQuery, env, ctx); return; }
