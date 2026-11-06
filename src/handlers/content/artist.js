@@ -40,6 +40,7 @@ export async function handleArtist(callbackQuery, env) {
   
   const caption = `👤 <b>Artist:</b> ${artist.name}\n💿 <b>Songs:</b> ${totalTracks}\n🗓️ <b>Joined:</b> ${addedDate}`;
   
+  // 👇 UPDATED BUTTONS: Follow replaced with Appears On
   const buttons = [
     [
       { text: "💿 Albums", callback_data: `artist_albums_${artistId}` },
@@ -47,7 +48,7 @@ export async function handleArtist(callbackQuery, env) {
     ],
     [
       { text: "🔗 Related", callback_data: `artist_related_${artistId}` },
-      { text: "➕ Follow", callback_data: `artist_follow_${artistId}` }
+      { text: "🎤 Appears On", callback_data: `artist_appears_${artistId}` }
     ],
     [{ text: "❌ Close", callback_data: "delete_message" }]
   ];
@@ -63,7 +64,7 @@ export async function handleArtist(callbackQuery, env) {
   }
 }
 
-// 👇 2. VIEW ARTIST SONGS (Edits the caption and buttons under the photo)
+// 👇 2. VIEW ARTIST SONGS (Edits the caption under the photo)
 export async function handleArtistSongsView(chatId, messageId, artistId, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
@@ -72,20 +73,29 @@ export async function handleArtistSongsView(chatId, messageId, artistId, env) {
     const artistQuery = `SELECT name FROM artists WHERE id = ?`;
     const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
     
+    // 👇 UPDATED QUERY: Getting Artist name + Featured names + Song title
     const tracksQuery = `
-      SELECT t.id, t.title FROM tracks t
+      SELECT 
+        t.id, 
+        t.title,
+        (SELECT a.name FROM track_artists ta JOIN artists a ON ta.artist_id = a.id WHERE ta.track_id = t.id AND ta.is_primary = 1 LIMIT 1) as main_artist,
+        (SELECT GROUP_CONCAT(a.name, ', ') FROM track_artists ta JOIN artists a ON ta.artist_id = a.id WHERE ta.track_id = t.id AND ta.is_primary = 0) as featured_artists
+      FROM tracks t
       LEFT JOIN track_artists ta ON t.id = ta.track_id
       WHERE ta.artist_id = ? AND t.deleted_at IS NULL AND t.status = 'published'
       GROUP BY t.id ORDER BY t.title LIMIT 20
     `;
     const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
     
-    let caption = `🎵 <b>${artist.name} - Songs</b>\n\n`;
+    let caption = `🎵 <b>${artist.name} - Songs</b>\n━━━━━━━━━━━━━━━━━━\n\n`;
     const buttons = [];
     
     if (tracks.results && tracks.results.length > 0) {
       tracks.results.forEach((track) => {
-        buttons.push([{ text: `🎧 ${track.title}`, callback_data: `track_${track.id}` }]);
+        const mainArtist = track.main_artist || artist.name;
+        const feat = track.featured_artists ? ` feat. ${track.featured_artists}` : "";
+        // Format: 🎤 Artist feat. Feature - Title
+        buttons.push([{ text: `🎤 ${mainArtist}${feat} - ${track.title}`, callback_data: `track_${track.id}` }]);
       });
     } else {
       caption += `No songs found.`;
@@ -94,13 +104,11 @@ export async function handleArtistSongsView(chatId, messageId, artistId, env) {
     buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
     buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
 
-    // 1. Edit the caption text
     await fetch(`${TELEGRAM_API_URL}/editMessageCaption`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, message_id: messageId, caption: caption, parse_mode: "HTML" })
     });
     
-    // 2. Edit the buttons below it
     await fetch(`${TELEGRAM_API_URL}/editMessageReplyMarkup`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: buttons } })
@@ -111,7 +119,7 @@ export async function handleArtistSongsView(chatId, messageId, artistId, env) {
   }
 }
 
-// 👇 3. VIEW ARTIST ALBUMS (Edits the caption and buttons under the photo)
+// 👇 3. VIEW ARTIST ALBUMS
 export async function handleArtistAlbumsView(chatId, messageId, artistId, env) {
   const BOT_TOKEN = env.BOT_TOKEN;
   const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
@@ -123,7 +131,7 @@ export async function handleArtistAlbumsView(chatId, messageId, artistId, env) {
     const albumsQuery = `SELECT id, title FROM albums WHERE artist_id = ? AND deleted_at IS NULL AND status = 'published' ORDER BY title LIMIT 20`;
     const albums = await env.DB.prepare(albumsQuery).bind(artistId).all();
     
-    let caption = `💿 <b>${artist.name} - Albums</b>\n\n`;
+    let caption = `💿 <b>${artist.name} - Albums</b>\n━━━━━━━━━━━━━━━━━━\n\n`;
     const buttons = [];
     
     if (albums.results && albums.results.length > 0) {
@@ -142,13 +150,11 @@ export async function handleArtistAlbumsView(chatId, messageId, artistId, env) {
     buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
     buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
 
-    // 1. Edit the caption text
     await fetch(`${TELEGRAM_API_URL}/editMessageCaption`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, message_id: messageId, caption: caption, parse_mode: "HTML" })
     });
     
-    // 2. Edit the buttons below it
     await fetch(`${TELEGRAM_API_URL}/editMessageReplyMarkup`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: buttons } })
@@ -156,5 +162,58 @@ export async function handleArtistAlbumsView(chatId, messageId, artistId, env) {
     
   } catch (error) {
     console.error("Albums View Error:", error);
+  }
+}
+
+// 👇 4. VIEW ARTIST APPEARS ON (New Feature)
+export async function handleArtistAppearsOnView(chatId, messageId, artistId, env) {
+  const BOT_TOKEN = env.BOT_TOKEN;
+  const TELEGRAM_API_URL = TELEGRAM_API(BOT_TOKEN);
+  
+  try {
+    const artistQuery = `SELECT name FROM artists WHERE id = ?`;
+    const artist = await env.DB.prepare(artistQuery).bind(artistId).first();
+    
+    // Query to find tracks where this artist is a FEATURE (is_primary = 0)
+    const tracksQuery = `
+      SELECT 
+        t.id, 
+        t.title,
+        (SELECT a.name FROM track_artists ta JOIN artists a ON ta.artist_id = a.id WHERE ta.track_id = t.id AND ta.is_primary = 1 LIMIT 1) as main_artist
+      FROM tracks t
+      JOIN track_artists ta ON t.id = ta.track_id
+      WHERE ta.artist_id = ? AND ta.is_primary = 0 AND t.deleted_at IS NULL AND t.status = 'published'
+      ORDER BY t.title LIMIT 20
+    `;
+    const tracks = await env.DB.prepare(tracksQuery).bind(artistId).all();
+    
+    let caption = `🎤 <b>${artist.name} - Appears On</b>\n━━━━━━━━━━━━━━━━━━\n\n`;
+    const buttons = [];
+    
+    if (tracks.results && tracks.results.length > 0) {
+      tracks.results.forEach((track) => {
+        const mainArtist = track.main_artist || "Unknown Artist";
+        // Format: 🎤 Main Artist feat. This Artist - Title
+        buttons.push([{ text: `🎤 ${mainArtist} feat. ${artist.name} - ${track.title}`, callback_data: `track_${track.id}` }]);
+      });
+    } else {
+      caption += `No featured appearances found.`;
+    }
+    
+    buttons.push([{ text: "🔙 Back to Artist", callback_data: `artist_${artistId}` }]);
+    buttons.push([{ text: "❌ Close", callback_data: "delete_message" }]);
+
+    await fetch(`${TELEGRAM_API_URL}/editMessageCaption`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, caption: caption, parse_mode: "HTML" })
+    });
+    
+    await fetch(`${TELEGRAM_API_URL}/editMessageReplyMarkup`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: buttons } })
+    });
+    
+  } catch (error) {
+    console.error("Appears On View Error:", error);
   }
 }
