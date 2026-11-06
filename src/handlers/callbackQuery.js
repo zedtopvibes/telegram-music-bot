@@ -1,5 +1,5 @@
 import { handleList } from "./content/list.js";
-import { handleArtist, handleArtistSongsView, handleArtistAlbumsView, handleArtistAppearsOnView } from "./content/artist.js";
+import { handleArtist, handleArtistSongsView, import { handleArtist, handleArtistSongsView, handleArtistAlbumsView, handleArtistAppearsOnView, handleArtistRelatedView } from "./content/artist.js";
 import { handleAlbum } from "./content/album.js";
 import { handleEp } from "./content/ep.js";
 import { handlePlaylist } from "./content/playlist.js";
