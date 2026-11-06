@@ -313,6 +313,19 @@ if (data.startsWith("artist_appears_")) {
   return;
 }
 
+// 👇 Handle Related Button
+if (data.startsWith("artist_related_")) {
+  const artistId = data.replace("artist_related_", "");
+  
+  await fetch(`${TELEGRAM_API(BOT_TOKEN)}/answerCallbackQuery`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQuery.id })
+  });
+  
+  await handleArtistRelatedView(chatId, messageId, artistId, env);
+  return;
+}
+
   // 9. Content Buttons
   if (data.startsWith("track_")) { await handleTrack(callbackQuery, env, ctx); return; }
   if (data.startsWith("artist_")) { await handleArtist(callbackQuery, env); return; }
