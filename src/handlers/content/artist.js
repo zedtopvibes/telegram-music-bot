@@ -48,7 +48,7 @@ export async function handleArtist(callbackQuery, env) {
     ],
     [
       { text: "🔗 Related", callback_data: `artist_related_${artistId}` },
-      { text: "🎤 Appears On", callback_data: `artist_appears_${artistId}` }
+      { text: "🎤 Features", callback_data: `artist_appears_${artistId}` }
     ],
     [{ text: "❌ Close", callback_data: "delete_message" }]
   ];
